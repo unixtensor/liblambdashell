@@ -1,0 +1,12 @@
+[package]
+name = "liblambdashell"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-print = "0.3.7"
+const_format = "0.2.33"
+home = "0.5.9"
+mlua = { version = "0.10.0", features = ["luau-jit"] }
+uzers = "0.12.1"
+whoami = "1.5.2"
