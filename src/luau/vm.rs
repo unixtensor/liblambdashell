@@ -14,16 +14,14 @@ fn new_instance() -> lResult<Luau> {
 
 fn out(args: MultiValue) -> String {
 	let mut print: Vec<String> = Vec::new();
-	let mut print_append = |v: String| {
-		if !print.is_empty() {
-			print.push(" ".to_owned());
+	args.iter()
+		.map(|arg| arg.to_string().unwrap_or("<SHELL CONVERSION ERROR>".to_owned()))
+		.for_each(|v| {
+	 		if !print.is_empty() {
+	           	print.push(" ".to_owned());
+	      	}
+	       	print.push(v);
 		}
-		print.push(v)
-	};
-	args.iter().for_each(|arg|
-		arg.to_string().map_or(print_append("<SHELL CONVERSION ERROR>".to_owned()),
-			|s_arg| print_append(s_arg)
-		)
 	);
 	print.concat()
 }
