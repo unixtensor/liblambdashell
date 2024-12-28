@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-color-print = "0.3.7"
+color-print = { version = "0.3.7", features = ["terminfo"] }
 const_format = "0.2.33"
 home = "0.5.9"
 mlua = { version = "0.10.0", features = ["luau-jit"] }

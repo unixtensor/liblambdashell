@@ -5,3 +5,6 @@ pub mod shell;
 mod commands;
 mod ps;
 mod rc;
+
+#[path = "./luau/vm.rs"]
+mod vm;

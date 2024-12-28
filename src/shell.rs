@@ -1,5 +1,5 @@
 use crate::{ps, commands, rc};
-use std::io;
+use std::{fs, io::{self}};
 
 pub struct Config {
     pub norc: bool
@@ -49,9 +49,10 @@ impl LambdaShell {
 
     pub fn start(&mut self) {
 	   	let rc_file = match self.config.norc {
-	        true => rc::config_file(),
-	        false => rc::none(),
+	        true => rc::none(),
+	        false => rc::config_file(),
 	    };
+
      	ps::display(&self.storage.ps1);
 
         loop {

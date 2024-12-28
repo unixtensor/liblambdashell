@@ -28,10 +28,8 @@ trait ChangeDirectory {
 impl PathBufIsValid for PathBuf {
 	fn is_valid(&self) -> Result<PathBuf, ValidStatus> {
 		match self.try_exists() {
-            Ok(root_folder_exist) => match root_folder_exist {
-                true => Ok(self.to_path_buf()),
-                false => Err(ValidStatus::NoRootFolder)
-            },
+            Ok(true) => Ok(self.to_path_buf()),
+            Ok(false) => Err(ValidStatus::NoRootFolder),
             Err(trye_error) => Err(ValidStatus::TryExists(trye_error))
         }
 	}
@@ -52,20 +50,11 @@ impl PathBufIsValid for PathBuf {
 
 impl ChangeDirectory for Command {
 	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf> {
-	    match std::env::set_current_dir(new_path) {
-	        Ok(()) => Some(new_path.to_path_buf()),
-	        Err(set_cd_err) => {
-				println!("{set_cd_err}");
-				None
-			},
-	    }
+	    std::env::set_current_dir(new_path).map_or_else(|cd_err| {println!("{cd_err}"); None}, |()| Some(new_path.to_path_buf()))
 	}
 
 	fn home_dir(&self) -> Option<PathBuf> {
-	    match home::home_dir() {
-	        Some(home_path_buf) => self.set_current_dir(&home_path_buf),
-	        None => self.set_current_dir(Path::new("/")),
-	    }
+	    home::home_dir().map_or(self.set_current_dir(Path::new("/")), |home_pathbuf| self.set_current_dir(&home_pathbuf))
 	}
 
 	fn previous_dir(&self) -> Option<PathBuf> {
@@ -107,6 +96,7 @@ impl ChangeDirectory for Command {
     fn change_directory(&self, args: SplitWhitespace) -> Option<PathBuf> {
         let vec_args: Vec<String> = args.map(|arg| arg.to_owned()).collect();
         match vec_args.first() {
+            None => self.home_dir(),
             Some(arg) => match arg.as_str() {
                 "/" => self.set_current_dir(Path::new("/")),
                 "-" => self.previous_dir(),
@@ -121,7 +111,6 @@ impl ChangeDirectory for Command {
                     }
                 }
             },
-            None => self.home_dir(),
         }
     }
 }
@@ -134,18 +123,18 @@ impl Command {
     }
 
     pub fn spawn(&self, command_process: io::Result<process::Child>) -> ProcessExitStatus {
-        match command_process {
+    	match command_process {
+            Err(e) => {
+                println!("{e}");
+                None
+            },
             Ok(mut child) => Some(match child.wait() {
                 Ok(exit_status) => exit_status,
                 Err(exit_status_err) => {
                     println!("{exit_status_err}");
-                    return None;
+                    return None
                 }
-            }),
-            Err(e) => {
-                println!("{e}");
-                return None;
-            }
+            })
         }
     }
 
@@ -153,7 +142,7 @@ impl Command {
         let mut args = self.0.split_whitespace();
         args.next().and_then(|command| match command {
             "cd" => {
-                Self::change_directory(self, args);
+            	self.change_directory(args);
                 None
             }
             command => self.spawn(process::Command::new(command).args(args).spawn()),
