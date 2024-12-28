@@ -105,7 +105,7 @@ impl ChangeDirectory for Command {
     }
 
     fn change_directory(&self, args: SplitWhitespace) -> Option<PathBuf> {
-        let vec_args: Vec<String> = args.map(|arg| arg.to_string()).collect();
+        let vec_args: Vec<String> = args.map(|arg| arg.to_owned()).collect();
         match vec_args.first() {
             Some(arg) => match arg.as_str() {
                 "/" => self.set_current_dir(Path::new("/")),

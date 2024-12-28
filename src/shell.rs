@@ -1,4 +1,4 @@
-use crate::{ps, commands};
+use crate::{ps, commands, rc};
 use std::io;
 
 pub struct Config {
@@ -18,10 +18,10 @@ struct Storage {
 
 impl LambdaShell {
     pub fn create(config: Config) -> Self {
-        Self {
+   		Self {
             storage: Storage {
                 command_exit_status: None,
-                ps1: ps::DEFAULT_PS.to_string(),
+                ps1: ps::DEFAULT_PS.to_owned(),
             },
             terminating: false,
             config,
@@ -30,34 +30,29 @@ impl LambdaShell {
 
     fn input(&mut self) {
         let mut input = String::new();
-        match io::stdin().read_line(&mut input) {
-            Ok(_size) => {
-                let trimmed_input = input.trim();
-                match trimmed_input {
-                    //special casey
-                    "exit" => self.terminating = true,
-                    _ => self.storage.command_exit_status = commands::Command::new(trimmed_input.to_string()).exec()
-                };
-            }
-            Err(read_error) => println!("{read_error}"),
-        };
+        io::stdin().read_line(&mut input).map_or_else(|read_error| println!("{read_error}"), |_size| {
+	        let trimmed_input = input.trim();
+	        match trimmed_input {
+	            //special casey
+	            "exit" => self.terminating = true,
+	            _ => self.storage.command_exit_status = commands::Command::new(trimmed_input.to_owned()).exec()
+	        };
+        })
     }
 
     pub fn wait(&mut self) -> Result<(), io::Error> {
-        match io::Write::flush(&mut io::stdout()) {
-            Ok(()) => {
-                self.input();
-                Ok(())
-            }
-            Err(flush_error) => {
-                println!("{flush_error}");
-                Err(flush_error)
-            }
-        }
+   		io::Write::flush(&mut io::stdout()).map_or_else(|flush_error| Err(flush_error), |()| {
+	     	self.input();
+			Ok(())
+	    })
     }
 
     pub fn start(&mut self) {
-        ps::display(&self.storage.ps1);
+	   	let rc_file = match self.config.norc {
+	        true => rc::config_file(),
+	        false => rc::none(),
+	    };
+     	ps::display(&self.storage.ps1);
 
         loop {
             match self.terminating {

@@ -112,3 +112,7 @@ pub fn config_file() -> Option<PathBuf> {
 	config_file.push("config.luau");
 	config_file.is_valid_file_or_create(DEFAULT_CONFIG_CONTENT.as_bytes())
 }
+
+pub fn none() -> Option<PathBuf> {
+	None
+}
