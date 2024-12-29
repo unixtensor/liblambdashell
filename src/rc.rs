@@ -1,7 +1,7 @@
 use std::{fs::{self, File}, io::{self, Write}, path::PathBuf};
 use thiserror::Error;
 
-const DEFAULT_CONFIG_CONTENT: &str = r#"--!strict
+pub const DEFAULT_CONFIG_CONTENT: &str = r#"--!strict
 
 local username = SHELL.SYSTEM.USERNAME
 local hostname = SHELL.SYSTEM.HOSTNAME
@@ -61,10 +61,10 @@ impl IsValid for PathBuf {
 			IsValidDirErr::NotAnEntry | IsValidDirErr::Missing => CreateErr::Passable
 		});
 		match possible_content {
-		    Ok(p) => Some(p),
-		    Err(e) => match e {
-			    CreateErr::TryExists(_) => None,
-			    CreateErr::Passable => f()
+			Ok(p) => Some(p),
+			Err(e) => match e {
+				CreateErr::TryExists(_) => None,
+				CreateErr::Passable => f()
 			},
 		}
 	}
@@ -72,8 +72,8 @@ impl IsValid for PathBuf {
 	fn is_valid_dir_or_create(&self) -> Option<PathBuf> {
 		self.is_valid_or(self.is_dir(), || {
 			match fs::create_dir(self) {
-			    Ok(()) => Some(self.to_path_buf()),
-			    Err(create_e) => display_none(create_e),
+				Ok(()) => Some(self.to_path_buf()),
+				Err(create_e) => display_none(create_e),
 			}
 		})
 	}
@@ -81,11 +81,11 @@ impl IsValid for PathBuf {
 	fn is_valid_file_or_create(&self, default_file_bytes: &[u8]) -> Option<PathBuf> {
 		self.is_valid_or(self.is_file(), || {
 			match File::create(self) {
-			    Ok(mut file) => match file.write_all(default_file_bytes) {
-			        Ok(()) => Some(self.to_path_buf()),
-			        Err(write_e) => display_none(write_e),
+				Ok(mut file) => match file.write_all(default_file_bytes) {
+					Ok(()) => Some(self.to_path_buf()),
+					Err(write_e) => display_none(write_e),
 				},
-			    Err(create_e) => display_none(create_e)
+				Err(create_e) => display_none(create_e)
 			}
 		})
 	}
@@ -114,8 +114,4 @@ pub fn history_file() -> Option<PathBuf> {
 	let mut config_file = config_dir()?;
 	config_file.push(".history");
 	config_file.is_valid_file_or_create("".as_bytes())
-}
-
-pub fn none() -> Option<PathBuf> {
-	None
 }

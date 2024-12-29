@@ -24,10 +24,10 @@ fn luau_out(luau_args: MultiValue) -> String {
 	luau_args.iter()
 		.map(|arg| arg.to_string().unwrap_or("<SHELL CONVERSION ERROR>".to_owned()))
 		.for_each(|arg| {
-	 		if !print.is_empty() {
-	           	print.push('\u{0009}'.to_string());
-	      	};
-	       	print.push(arg);
+			if !print.is_empty() {
+				print.push('\u{0009}'.to_string());
+			};
+			print.push(arg);
 		}
 	);
 	print.concat()
@@ -71,9 +71,9 @@ impl Vm {
 		Ok(())
 	}
 
-	pub fn exec(&self, source: String) -> Option<()> {
+	pub fn exec(&self, source: String) {
 		self.set_shell_globals().map_or_else(|e| display_none(e), |()| {
 			self.0.load(source).exec().map_or_else(|e| luau_error(e), |()| Some(()))
-		})
+		});
 	}
 }
