@@ -21,17 +21,17 @@ fn luau_error<T>(err: mlua::Error) -> Option<T> {
 }
 
 fn luau_out(luau_args: MultiValue) -> String {
-	let mut print: Vec<String> = Vec::new();
+	let mut print = String::new();
 	luau_args.iter()
 		.map(|arg| arg.to_string().unwrap_or("<SHELL CONVERSION ERROR>".to_owned()))
 		.for_each(|arg| {
 			if !print.is_empty() {
-				print.push('\u{0009}'.to_string());
+				print.push_str(&'\u{0009}'.to_string());
 			};
-			print.push(arg);
+			print.push_str(&arg);
 		}
 	);
-	print.concat()
+	print
 }
 
 trait Globals {
@@ -42,7 +42,7 @@ trait Globals {
 impl Globals for Vm {
 	fn print(&self) -> lResult<()> {
 		self.0.globals().set("print", self.0.create_function(|_this, args: MultiValue| -> lResult<()> {
-			cprintln!("{}", luau_out(args));
+			println!("{}", luau_out(args));
 			Ok(())
 		})?)
 	}
