@@ -1,3 +1,4 @@
+use crate::VERSION;
 use mlua::{
 	Lua as Luau,
 	Result as lResult,
@@ -15,7 +16,7 @@ where
 }
 
 fn luau_error<T>(err: mlua::Error) -> Option<T> {
-	cprintln!("<bold>====</>\n<r>{err}</>\n<bold>====</>");
+	cprintln!("<bold>====</>\n<r><bold>[!]</> {err}</>\n<bold>====</>");
 	None
 }
 
@@ -36,6 +37,7 @@ fn luau_out(luau_args: MultiValue) -> String {
 trait Globals {
 	fn print(&self) -> lResult<()>;
 	fn printraw(&self) -> lResult<()>;
+	fn version(&self) -> lResult<()>;
 }
 impl Globals for Vm {
 	fn print(&self) -> lResult<()> {
@@ -50,24 +52,25 @@ impl Globals for Vm {
 			Ok(())
 		})?)
 	}
+	fn version(&self) -> lResult<()> {
+		let luau_info = self.0.globals().get::<String>("_VERSION")?;
+		self.0.globals().set("_VERSION", format!("{}, liblambdashell {}", luau_info, VERSION))
+	}
 }
 
 pub struct Vm(Luau);
 impl Vm {
-	pub fn new() -> Option<Self> {
-		let spawn_luau = || -> lResult<Luau> {
-			let instance = Luau::new();
-			instance.sandbox(true)?;
-			instance.globals().set("getfenv", mlua::Nil)?;
-			instance.globals().set("setfenv", mlua::Nil)?;
-			Ok(instance)
-		};
-		spawn_luau().map_or_else(|e| display_none(e), |l| Some(Self(l)))
+	pub fn new() -> Self {
+		Self(Luau::new())
 	}
 
 	fn set_shell_globals(&self) -> mlua::Result<()> {
 		self.print()?;
 		self.printraw()?;
+		self.version()?;
+		self.0.globals().set("getfenv", mlua::Nil)?;
+		self.0.globals().set("setfenv", mlua::Nil)?;
+		self.0.sandbox(true)?;
 		Ok(())
 	}
 

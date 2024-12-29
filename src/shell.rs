@@ -15,7 +15,7 @@ trait ShellLuauVm {
 }
 impl ShellLuauVm for LambdaShell {
 	fn shell_vm_exec(&self, source: String) {
-		vm::Vm::new().map(|vm| vm.exec(source));
+		vm::Vm::new().exec(source);
 	}
 }
 
@@ -36,21 +36,17 @@ impl LambdaShell {
 		}
 	}
 
-	fn input(&mut self) {
-		let mut input = String::new();
-		io::stdin().read_line(&mut input).map_or_else(|read_error| println!("{read_error}"), |_size| {
-			let trimmed_input = input.trim();
-			match trimmed_input {
-				//special casey
-				"exit" => self.terminating = true,
-				_ => self.storage.command_exit_status = commands::Command::new(trimmed_input.to_owned()).exec()
-			};
-		})
-	}
-
 	pub fn wait(&mut self) -> Result<(), io::Error> {
 		io::Write::flush(&mut io::stdout()).map_or_else(|flush_error| Err(flush_error), |()| {
-			self.input();
+			let mut input = String::new();
+			io::stdin().read_line(&mut input).map_or_else(|read_error| println!("{read_error}"), |_size| {
+				let trimmed_input = input.trim();
+				match trimmed_input {
+					//special casey
+					"exit" => self.terminating = true,
+					_ => self.storage.command_exit_status = commands::Command::new(trimmed_input.to_owned()).exec()
+				};
+			});
 			Ok(())
 		})
 	}
