@@ -25,6 +25,11 @@ enum CreateErr {
 	Passable
 }
 
+fn display_none<T>(e: io::Error) -> Option<T> {
+	println!("{e}");
+	None
+}
+
 #[allow(dead_code)]
 trait IsValid {
 	fn is_valid(&self, is_dir_or_file: bool) -> Result<PathBuf, IsValidDirErr>;
@@ -68,10 +73,7 @@ impl IsValid for PathBuf {
 		self.is_valid_or(self.is_dir(), || {
 			match fs::create_dir(self) {
 			    Ok(()) => Some(self.to_path_buf()),
-			    Err(create_e) => {
-					println!("{create_e}");
-					None
-				},
+			    Err(create_e) => display_none(create_e),
 			}
 		})
 	}
@@ -79,17 +81,11 @@ impl IsValid for PathBuf {
 	fn is_valid_file_or_create(&self, default_file_bytes: &[u8]) -> Option<PathBuf> {
 		self.is_valid_or(self.is_file(), || {
 			match File::create(self) {
-			    Err(create_e) => {
-					println!("{create_e}");
-					None
-				},
 			    Ok(mut file) => match file.write_all(default_file_bytes) {
 			        Ok(()) => Some(self.to_path_buf()),
-			        Err(write_e) => {
-						println!("{write_e}");
-						None
-					},
+			        Err(write_e) => display_none(write_e),
 				},
+			    Err(create_e) => display_none(create_e)
 			}
 		})
 	}
@@ -111,6 +107,13 @@ pub fn config_file() -> Option<PathBuf> {
 	let mut config_file = config_dir()?;
 	config_file.push("config.luau");
 	config_file.is_valid_file_or_create(DEFAULT_CONFIG_CONTENT.as_bytes())
+}
+
+//TODO: history.rs
+pub fn history_file() -> Option<PathBuf> {
+	let mut config_file = config_dir()?;
+	config_file.push(".history");
+	config_file.is_valid_file_or_create("".as_bytes())
 }
 
 pub fn none() -> Option<PathBuf> {

@@ -11,6 +11,11 @@ enum ValidStatus {
 	TryExists(io::Error)
 }
 
+fn display_none<T>(e: io::Error) -> Option<T> {
+	println!("{e}");
+	None
+}
+
 trait PathBufIsValid {
 	fn is_valid(&self) -> Result<PathBuf, ValidStatus>;
 	fn is_valid_or_home(&self) -> Option<PathBuf>;
@@ -50,7 +55,7 @@ impl PathBufIsValid for PathBuf {
 
 impl ChangeDirectory for Command {
 	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf> {
-	    std::env::set_current_dir(new_path).map_or_else(|cd_err| {println!("{cd_err}"); None}, |()| Some(new_path.to_path_buf()))
+	    std::env::set_current_dir(new_path).map_or_else(|cd_err| display_none(cd_err), |()| Some(new_path.to_path_buf()))
 	}
 
 	fn home_dir(&self) -> Option<PathBuf> {
@@ -124,10 +129,7 @@ impl Command {
 
     pub fn spawn(&self, command_process: io::Result<process::Child>) -> ProcessExitStatus {
     	match command_process {
-            Err(e) => {
-                println!("{e}");
-                None
-            },
+            Err(e) => display_none(e),
             Ok(mut child) => Some(match child.wait() {
                 Ok(exit_status) => exit_status,
                 Err(exit_status_err) => {

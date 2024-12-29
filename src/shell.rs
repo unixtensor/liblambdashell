@@ -1,14 +1,17 @@
-use crate::{ps, commands, rc};
+use crate::{ps, commands, rc, vm};
 use std::{fs, io::{self}};
+use core::fmt;
+
+fn display_none<T, E>(err: E) -> Option<T>
+where
+	E: fmt::Display
+{
+	println!("{err}");
+	None
+}
 
 pub struct Config {
     pub norc: bool
-}
-
-pub struct LambdaShell {
-    terminating: bool,
-    storage: Storage,
-    config: Config,
 }
 
 struct Storage {
@@ -16,6 +19,20 @@ struct Storage {
     pub ps1: String,
 }
 
+trait ShellLuauVm {
+	fn shell_vm_exec(&self, source: String) -> Option<()>;
+}
+impl ShellLuauVm for LambdaShell {
+	fn shell_vm_exec(&self, source: String) -> Option<()> {
+		vm::Vm::new().map_or(None, |vm| vm.exec(source))
+	}
+}
+
+pub struct LambdaShell {
+    terminating: bool,
+    storage: Storage,
+    config: Config,
+}
 impl LambdaShell {
     pub fn create(config: Config) -> Self {
    		Self {
@@ -47,11 +64,18 @@ impl LambdaShell {
 	    })
     }
 
-    pub fn start(&mut self) {
-	   	let rc_file = match self.config.norc {
+    fn rc_parse(&self) {
+    	let rc_file = match self.config.norc {
 	        true => rc::none(),
 	        false => rc::config_file(),
 	    };
+     	rc_file.map(|conf_file| fs::read_to_string(conf_file)
+      		.map_or_else(|read_err| display_none(read_err), |conf| self.shell_vm_exec(conf))
+      	);
+    }
+
+    pub fn start(&mut self) {
+    	self.rc_parse();
 
      	ps::display(&self.storage.ps1);
 
