@@ -21,10 +21,12 @@ pub trait TerminalColors {
 impl TerminalColors for Vm {
 	fn var_terminal_colors(&self, colors_table: &Table) -> lResult<()> {
 		term_colors_luau!(self, colors_table,
-			grey black dark_grey red
-		    dark_red green dark_green yellow
-		    dark_yellow blue dark_blue magenta
-		    dark_magenta cyan dark_cyan white
+			dark_grey   dark_red     dark_green dark_cyan
+			dark_yellow dark_magenta dark_blue
+			red   grey  black
+		    green yellow
+		    blue  magenta
+		    cyan  white
 		);
 		Ok(())
 	}
