@@ -9,3 +9,5 @@ mod rc;
 mod vm;
 #[path = "./luau/alias.rs"]
 mod alias;
+#[path = "./luau/terminal.rs"]
+mod terminal;

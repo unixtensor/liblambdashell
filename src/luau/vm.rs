@@ -1,9 +1,10 @@
-use crate::VERSION;
 use mlua::{
 	Lua as Luau,
 	Result as lResult,
 	MultiValue,
 };
+use crate::VERSION;
+use crate::terminal::TerminalColors;
 use core::fmt;
 use color_print::cprintln;
 
@@ -58,7 +59,7 @@ impl Globals for Vm {
 	}
 }
 
-pub struct Vm(Luau);
+pub struct Vm(pub Luau);
 impl Vm {
 	pub fn new() -> Self {
 		Self(Luau::new())
@@ -68,6 +69,7 @@ impl Vm {
 		self.print()?;
 		self.printraw()?;
 		self.version()?;
+		self.var_terminal()?;
 		self.0.globals().set("getfenv", mlua::Nil)?;
 		self.0.globals().set("setfenv", mlua::Nil)?;
 		self.0.sandbox(true)?;

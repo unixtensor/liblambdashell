@@ -12,3 +12,9 @@ mlua = { version = "0.10.0", features = ["luau-jit"] }
 thiserror = "2.0.9"
 uzers = "0.12.1"
 whoami = "1.5.2"
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1
