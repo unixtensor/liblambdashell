@@ -26,13 +26,13 @@ macro_rules! background_styles_luau {
 }
 
 pub trait TerminalColors {
-	fn var_terminal_colors_background(&self, style_table: &Table) -> lResult<()>;
-	fn var_terminal_colors_foreground(&self, style_table: &Table) -> lResult<()>;
-	fn var_terminal_text_styling(&self) -> lResult<Table>;
-	fn var_terminal(&self) -> lResult<()>;
+	fn background(&self, style_table: &Table) -> lResult<()>;
+	fn foreground(&self, style_table: &Table) -> lResult<()>;
+	fn styling(&self) -> lResult<Table>;
+	fn terminal(&self) -> lResult<()>;
 }
 impl TerminalColors for Vm {
-	fn var_terminal_colors_foreground(&self, style_table: &Table) -> lResult<()> {
+	fn background(&self, style_table: &Table) -> lResult<()> {
 		let foreground_table = self.0.create_table()?;
 		foreground_styles_luau!(self, foreground_table,
 			dark_grey   dark_red     dark_green dark_cyan
@@ -50,7 +50,7 @@ impl TerminalColors for Vm {
         Ok(())
 	}
 
-	fn var_terminal_colors_background(&self, style_table: &Table) -> lResult<()> {
+	fn foreground(&self, style_table: &Table) -> lResult<()> {
 		let background_table = self.0.create_table()?;
 		background_styles_luau!(self, background_table,
 			on_dark_grey   on_dark_red     on_dark_green on_dark_cyan
@@ -64,18 +64,16 @@ impl TerminalColors for Vm {
         Ok(())
 	}
 
-	fn var_terminal_text_styling(&self) -> lResult<Table> {
-		let color_table = self.0.create_table()?;
+	fn styling(&self) -> lResult<Table> {
 		let style_table = self.0.create_table()?;
-		self.var_terminal_colors_foreground(&style_table)?;
-		self.var_terminal_colors_background(&style_table)?;
-		color_table.set("STYLE", style_table)?;
-		Ok(color_table)
+		self.foreground(&style_table)?;
+		self.background(&style_table)?;
+		Ok(style_table)
 	}
 
-	fn var_terminal(&self) -> lResult<()> {
+	fn terminal(&self) -> lResult<()> {
 		let term_table = self.0.create_table()?;
-		term_table.set("OUT", self.var_terminal_text_styling()?)?;
+		term_table.set("OUT", self.styling()?)?;
 		self.0.globals().set("TERMINAL", &term_table)?;
 		Ok(())
 	}

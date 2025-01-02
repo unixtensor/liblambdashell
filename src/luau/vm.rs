@@ -69,7 +69,7 @@ impl Vm {
 		self.print()?;
 		self.printraw()?;
 		self.version()?;
-		self.var_terminal()?;
+		self.terminal()?;
 		self.0.globals().set("getfenv", mlua::Nil)?;
 		self.0.globals().set("setfenv", mlua::Nil)?;
 		self.0.sandbox(true)?;
