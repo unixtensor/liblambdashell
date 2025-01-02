@@ -91,7 +91,7 @@ impl IsValid for PathBuf {
 	}
 
 	fn is_valid_option(&self, is_dir_or_file: bool) -> Option<PathBuf> {
-		self.is_valid(is_dir_or_file).map_or(None, |p| Some(p))
+		self.is_valid(is_dir_or_file).ok()
 	}
 }
 
@@ -109,9 +109,9 @@ pub fn config_file() -> Option<PathBuf> {
 	config_file.is_valid_file_or_create(DEFAULT_CONFIG_CONTENT.as_bytes())
 }
 
-//TODO: history.rs
+// TODO: history.rs
 pub fn history_file() -> Option<PathBuf> {
 	let mut config_file = config_dir()?;
 	config_file.push(".history");
-	config_file.is_valid_file_or_create("".as_bytes())
+	config_file.is_valid_file_or_create(b"")
 }

@@ -55,7 +55,7 @@ impl PathBufIsValid for PathBuf {
 
 impl ChangeDirectory for Command {
 	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf> {
-		std::env::set_current_dir(new_path).map_or_else(|cd_err| display_none(cd_err), |()| Some(new_path.to_path_buf()))
+		std::env::set_current_dir(new_path).map_or_else(display_none, |()| Some(new_path.to_path_buf()))
 	}
 
 	fn home_dir(&self) -> Option<PathBuf> {
@@ -120,34 +120,27 @@ impl ChangeDirectory for Command {
 	}
 }
 
-pub type ProcessExitStatus = Option<process::ExitStatus>;
 pub struct Command(String);
 impl Command {
 	pub fn new(input: String) -> Self {
 		Self(input)
 	}
 
-	pub fn spawn(&self, command_process: io::Result<process::Child>) -> ProcessExitStatus {
-		match command_process {
-			Err(e) => display_none(e),
-			Ok(mut child) => Some(match child.wait() {
-				Ok(exit_status) => exit_status,
-				Err(exit_status_err) => {
-					println!("{exit_status_err}");
-					return None
-				}
-			})
-		}
+	pub fn spawn(&self, command_process: io::Result<process::Child>) {
+		command_process.map_or_else(display_none, |mut child| Some(child.wait()));
 	}
 
-	pub fn exec(&self) -> ProcessExitStatus {
+	pub fn exec(&self) {
 		let mut args = self.0.split_whitespace();
-		args.next().and_then(|command| match command {
-			"cd" => {
-				self.change_directory(args);
-				None
+		if let Some(command) = args.next() {
+			match command {
+				"cd" => {
+					self.change_directory(args);
+				},
+				command => {
+					self.spawn(process::Command::new(command).args(args).spawn());
+				}
 			}
-			command => self.spawn(process::Command::new(command).args(args).spawn()),
-		})
+		}
 	}
 }
