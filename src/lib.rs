@@ -11,3 +11,5 @@ mod vm;
 mod alias;
 #[path = "./luau/terminal.rs"]
 mod terminal;
+#[path = "./luau/system.rs"]
+mod sytem;
