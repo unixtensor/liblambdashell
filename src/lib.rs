@@ -1,6 +1,6 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub mod shell;
+pub mod session;
 mod commands;
 mod ps;
 mod rc;
@@ -11,5 +11,5 @@ mod vm;
 mod alias;
 #[path = "./luau/terminal.rs"]
 mod terminal;
-#[path = "./luau/system.rs"]
-mod sytem;
+#[path = "./luau/shell.rs"]
+mod shell;
