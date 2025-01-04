@@ -1,4 +1,4 @@
-use mlua::{Result as lResult, Table};
+use mlua::{Result as lResult, Table, Value};
 use whoami::fallible;
 use crate::vm::LuauVm;
 
@@ -11,9 +11,8 @@ impl PsPrompt for LuauVm {
 	fn ps_prompt(&self) -> lResult<Table> {
 		let prompt_table = self.0.create_table()?;
 		let prompt_metatable = self.0.create_table()?;
-		prompt_metatable.set("__index", self.0.create_function(|_, (lua_self, index): (String, String)| -> lResult<()> {
-			println!("lua_self={} index={}", lua_self, index);
-			Ok(())
+		prompt_metatable.set("__index", self.0.create_function(|_, (table, index): (Table, Value)| -> lResult<String> {
+			table.raw_get::<String>(index)
 		})?)?;
 		prompt_metatable.set("__newindex", self.0.create_function(|_, _: String| -> lResult<String> {
 			Ok("placeholder".to_owned())

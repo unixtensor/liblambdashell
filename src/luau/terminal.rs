@@ -25,13 +25,12 @@ macro_rules! background_styles_luau {
     };
 }
 
-pub trait TerminalColors {
+trait Colors {
 	fn background(&self, style_table: &Table) -> lResult<()>;
 	fn foreground(&self, style_table: &Table) -> lResult<()>;
-	fn styling(&self) -> lResult<Table>;
-	fn terminal(&self, luau_globals: &Table) -> lResult<()>;
+	fn styling(&self, term_out_table: &Table) -> lResult<()>;
 }
-impl TerminalColors for LuauVm {
+impl Colors for LuauVm {
 	fn background(&self, style_table: &Table) -> lResult<()> {
 		let foreground_table = self.0.create_table()?;
 		foreground_styles_luau!(self, foreground_table,
@@ -46,8 +45,7 @@ impl TerminalColors for LuauVm {
 			underline_blue        underline_magenta      underline_cyan       underline_white
 			bold
 		);
-		style_table.set("FOREGROUND", foreground_table)?;
-        Ok(())
+		style_table.set("FOREGROUND", foreground_table)
 	}
 
 	fn foreground(&self, style_table: &Table) -> lResult<()> {
@@ -60,21 +58,37 @@ impl TerminalColors for LuauVm {
 		    on_blue  on_magenta
 		    on_cyan  on_white
 		);
-		style_table.set("BACKGROUND", background_table)?;
-        Ok(())
+		style_table.set("BACKGROUND", background_table)
 	}
 
-	fn styling(&self) -> lResult<Table> {
+	fn styling(&self, term_out_table: &Table) -> lResult<()> {
 		let style_table = self.0.create_table()?;
 		self.foreground(&style_table)?;
 		self.background(&style_table)?;
-		Ok(style_table)
+		term_out_table.set("STYLE", style_table)
 	}
+}
 
-	fn terminal(&self, luau_globals: &Table) -> lResult<()> {
+trait Write {
+	fn write(&self, term_out_table: &Table) -> lResult<()>;
+}
+impl Write for LuauVm {
+	fn write(&self, term_out_table: &Table) -> lResult<()> {
+		term_out_table.set("WRITE", self.0.create_function(|_, s: String| -> lResult<()> {
+			print!("{s}");
+			Ok(())
+		})?)
+	}
+}
+
+pub trait Terminal {
+	fn global_terminal(&self, luau_globals: &Table) -> lResult<()>;
+}
+impl Terminal for LuauVm {
+	fn global_terminal(&self, luau_globals: &Table) -> lResult<()> {
 		let term_table = self.0.create_table()?;
-		term_table.set("OUT", self.styling()?)?;
-		luau_globals.set("TERMINAL", &term_table)?;
-		Ok(())
+		let term_out_table = self.0.create_table()?;
+		term_table.set("OUT", term_out_table)?;
+		luau_globals.set("TERMINAL", &term_table)
 	}
 }
