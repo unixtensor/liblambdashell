@@ -1,20 +1,12 @@
-use crate::{ps, commands, rc, vm};
+use crate::{commands, ps, rc, vm::{self, LuauVm}};
 use std::{fs, io::{self}};
 
 pub struct Config {
 	pub norc: bool
 }
 
-trait ShellLuauVm {
-	fn shell_vm_exec(&self, source: String);
-}
-impl ShellLuauVm for LambdaShell {
-	fn shell_vm_exec(&self, source: String) {
-		vm::Vm::new().exec(source);
-	}
-}
-
 pub struct LambdaShell {
+	vm: LuauVm,
 	ps1: String,
 	config: Config,
 	terminating: bool,
@@ -22,6 +14,7 @@ pub struct LambdaShell {
 impl LambdaShell {
 	pub fn create(config: Config) -> Self {
 		Self {
+			vm: vm::LuauVm::new(),
 			ps1: ps::DEFAULT_PS.to_owned(),
 			terminating: false,
 			config,
@@ -41,30 +34,27 @@ impl LambdaShell {
 		})
 	}
 
-	fn rc_parse(&self) {
-		if !self.config.norc {
-			if let Some(conf_file) = rc::config_file() {
-				match fs::read_to_string(conf_file) {
-			        Ok(luau_conf) => self.shell_vm_exec(luau_conf),
-			        Err(read_err) => println!("{read_err}"),
-			    }
-			}
-		}
+	pub fn vm_exec(&self, source: String) {
+		self.vm.exec(source);
 	}
 
 	pub fn start(&mut self) {
-		self.rc_parse();
-
-		ps::display(&self.ps1);
-
+		if !self.config.norc {
+			if let Some(conf_file) = rc::config_file() {
+				fs::read_to_string(conf_file).map_or_else(|e| println!("{e}"), |luau_conf| self.vm_exec(luau_conf));
+			}
+		}
 		loop {
 			match self.terminating {
 				true => break,
-				false => match self.wait() {
-					Ok(()) => ps::display(&self.ps1),
-					Err(flush_error) => {
-						println!("{flush_error}");
-						break;
+				false => {
+
+					match self.wait() {
+						Ok(()) => {},
+						Err(flush_error) => {
+							println!("{flush_error}");
+							break;
+						}
 					}
 				},
 			}

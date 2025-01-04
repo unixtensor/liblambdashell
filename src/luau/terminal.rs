@@ -1,6 +1,6 @@
 use mlua::{Result as lResult, Table};
 use crossterm::style::Stylize;
-use crate::vm::Vm;
+use crate::vm::LuauVm;
 
 macro_rules! foreground_styles_luau {
 	($self:expr, $style_table:expr, $($color:ident)+) => {
@@ -29,9 +29,9 @@ pub trait TerminalColors {
 	fn background(&self, style_table: &Table) -> lResult<()>;
 	fn foreground(&self, style_table: &Table) -> lResult<()>;
 	fn styling(&self) -> lResult<Table>;
-	fn terminal(&self) -> lResult<()>;
+	fn terminal(&self, luau_globals: &Table) -> lResult<()>;
 }
-impl TerminalColors for Vm {
+impl TerminalColors for LuauVm {
 	fn background(&self, style_table: &Table) -> lResult<()> {
 		let foreground_table = self.0.create_table()?;
 		foreground_styles_luau!(self, foreground_table,
@@ -71,10 +71,10 @@ impl TerminalColors for Vm {
 		Ok(style_table)
 	}
 
-	fn terminal(&self) -> lResult<()> {
+	fn terminal(&self, luau_globals: &Table) -> lResult<()> {
 		let term_table = self.0.create_table()?;
 		term_table.set("OUT", self.styling()?)?;
-		self.0.globals().set("TERMINAL", &term_table)?;
+		luau_globals.set("TERMINAL", &term_table)?;
 		Ok(())
 	}
 }
