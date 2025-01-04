@@ -1,4 +1,4 @@
-use crate::{commands, ps, rc, vm::{self, LuauVm}};
+use crate::{commands, ps, rc, vm::{LuauVm, self}};
 use std::{fs, io::{self}};
 
 pub struct Config {

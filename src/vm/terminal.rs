@@ -25,6 +25,7 @@ macro_rules! background_styles_luau {
     };
 }
 
+#[allow(dead_code)]
 trait Colors {
 	fn background(&self, style_table: &Table) -> lResult<()>;
 	fn foreground(&self, style_table: &Table) -> lResult<()>;
@@ -69,6 +70,7 @@ impl Colors for LuauVm {
 	}
 }
 
+#[allow(dead_code)]
 trait Write {
 	fn write(&self, term_out_table: &Table) -> lResult<()>;
 }
