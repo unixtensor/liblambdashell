@@ -1,4 +1,5 @@
-use mlua::{Result as lResult, Table};
+use const_format::str_split;
+use mlua::{Function, Result as lResult, Table};
 use crossterm::style::Stylize;
 use crate::vm::LuauVm;
 
@@ -11,16 +12,12 @@ macro_rules! foreground_styles_luau {
         )+
     };
 }
-
 macro_rules! background_styles_luau {
 	($self:expr, $style_table:expr, $($color:ident)+) => {
 		$(
-			match stringify!($color).split_once("_") {
-			    Some((_, color_name)) => $style_table.set(color_name.to_ascii_uppercase(), $self.0.create_function(|_, text: String| -> lResult<String> {
-					Ok(text.$color().to_string())
-        		})?)?,
-			    None => panic!("Luau set error: {:?}. There was nothing to split from delimiter: \"_\"", stringify!($color)),
-			}
+			$style_table.set(str_split!(stringify!($color), "_")[1..].join("_").to_ascii_uppercase(), $self.0.create_function(|_, text: String| -> lResult<String> {
+				Ok(text.$color().to_string())
+        	})?)?;
         )+
     };
 }
