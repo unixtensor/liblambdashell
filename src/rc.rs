@@ -42,10 +42,7 @@ trait IsValid {
 impl IsValid for PathBuf {
 	fn is_valid(&self, is_content: bool) -> Result<PathBuf, IsValidDirErr> {
 		match self.try_exists() {
-			Ok(true) => match is_content {
-				true => Ok(self.to_path_buf()),
-				false => Err(IsValidDirErr::NotAnEntry)
-			},
+			Ok(true) => if is_content { Ok(self.to_path_buf()) } else { Err(IsValidDirErr::NotAnEntry) },
 			Ok(false) => Err(IsValidDirErr::Missing),
 			Err(try_e) => Err(IsValidDirErr::TryExists(try_e))
 		}
@@ -91,7 +88,7 @@ pub fn config_dir() -> Option<PathBuf> {
 
 pub fn config_file() -> Option<PathBuf> {
 	let mut config_file = config_dir()?;
-	config_file.push("config.luau");
+	config_file.push("init.luau");
 	config_file.is_valid_file_or_create(DEFAULT_CONFIG_CONTENT.as_bytes())
 }
 
