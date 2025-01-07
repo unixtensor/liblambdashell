@@ -1,6 +1,7 @@
-use const_format::str_split;
 use mlua::{Function, Result as lResult, Table};
+use const_format::str_split;
 use crossterm::style::Stylize;
+
 use crate::vm::LuauVm;
 
 macro_rules! foreground_styles_luau {
@@ -15,21 +16,21 @@ macro_rules! foreground_styles_luau {
 macro_rules! background_styles_luau {
 	($self:expr, $style_table:expr, $($color:ident)+) => {
 		$(
-			$style_table.set(str_split!(stringify!($color), "_")[1..].join("_").to_ascii_uppercase(), $self.0.create_function(|_, text: String| -> lResult<String> {
+			$style_table.set(
+				str_split!(stringify!($color), "_")[1..].join("_").to_ascii_uppercase(),
+			$self.0.create_function(|_, text: String| -> lResult<String> {
 				Ok(text.$color().to_string())
         	})?)?;
         )+
     };
 }
 
-#[allow(dead_code)]
 trait Colors {
-	fn background(&self, style_table: &Table) -> lResult<()>;
-	fn foreground(&self, style_table: &Table) -> lResult<()>;
-	fn styling(&self, term_out_table: &Table) -> lResult<()>;
+	fn background(&self, term_out_table: &Table) -> lResult<()>;
+	fn foreground(&self, term_out_table: &Table) -> lResult<()>;
 }
 impl Colors for LuauVm {
-	fn background(&self, style_table: &Table) -> lResult<()> {
+	fn background(&self, term_out_table: &Table) -> lResult<()> {
 		let foreground_table = self.0.create_table()?;
 		foreground_styles_luau!(self, foreground_table,
 			dark_grey   dark_red     dark_green dark_cyan
@@ -43,10 +44,10 @@ impl Colors for LuauVm {
 			underline_blue        underline_magenta      underline_cyan       underline_white
 			bold
 		);
-		style_table.set("FOREGROUND", foreground_table)
+		term_out_table.set("FOREGROUND", foreground_table)
 	}
 
-	fn foreground(&self, style_table: &Table) -> lResult<()> {
+	fn foreground(&self, term_out_table: &Table) -> lResult<()> {
 		let background_table = self.0.create_table()?;
 		background_styles_luau!(self, background_table,
 			on_dark_grey   on_dark_red     on_dark_green on_dark_cyan
@@ -56,38 +57,56 @@ impl Colors for LuauVm {
 		    on_blue  on_magenta
 		    on_cyan  on_white
 		);
-		style_table.set("BACKGROUND", background_table)
-	}
-
-	fn styling(&self, term_out_table: &Table) -> lResult<()> {
-		let style_table = self.0.create_table()?;
-		self.foreground(&style_table)?;
-		self.background(&style_table)?;
-		term_out_table.set("STYLE", style_table)
+		term_out_table.set("BACKGROUND", background_table)
 	}
 }
 
-#[allow(dead_code)]
 trait Write {
-	fn write(&self, term_out_table: &Table) -> lResult<()>;
+	fn write(&self) -> lResult<Function>;
+	fn write_error(&self) -> lResult<Function>;
+	fn write_error_ln(&self) -> lResult<Function>;
 }
 impl Write for LuauVm {
-	fn write(&self, term_out_table: &Table) -> lResult<()> {
-		term_out_table.set("WRITE", self.0.create_function(|_, s: String| -> lResult<()> {
+	fn write(&self) -> lResult<Function> {
+		self.0.create_function(|_, s: String| -> lResult<()> {
 			print!("{s}");
 			Ok(())
-		})?)
+		})
+	}
+
+	fn write_error(&self) -> lResult<Function> {
+		self.0.create_function(|_, s: String| -> lResult<()> {
+			eprint!("{s}");
+			Ok(())
+		})
+	}
+
+	fn write_error_ln(&self) -> lResult<Function> {
+		self.0.create_function(|_, s: String| -> lResult<()> {
+			eprintln!("{s}");
+			Ok(())
+		})
 	}
 }
 
 pub trait Terminal {
+	fn out(&self) -> lResult<Table>;
 	fn global_terminal(&self, luau_globals: &Table) -> lResult<()>;
 }
 impl Terminal for LuauVm {
+	fn out(&self) -> lResult<Table> {
+		let term_out_table = self.0.create_table()?;
+		self.background(&term_out_table)?;
+		self.foreground(&term_out_table)?;
+		Ok(term_out_table)
+	}
+
 	fn global_terminal(&self, luau_globals: &Table) -> lResult<()> {
 		let term_table = self.0.create_table()?;
-		let term_out_table = self.0.create_table()?;
-		term_table.set("OUT", term_out_table)?;
-		luau_globals.set("TERMINAL", &term_table)
+		term_table.set("OUT", self.out()?)?;
+		term_table.set("WRITE", self.write()?)?;
+		term_table.set("WRITE_ERROR", self.write_error()?)?;
+		term_table.set("WRITE_ERROR_LN", self.write_error_ln()?)?;
+		luau_globals.set("TERMINAL", term_table)
 	}
 }

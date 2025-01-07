@@ -1,10 +1,11 @@
 use mlua::{Result as lResult, Table, Value};
 use whoami::fallible;
+
 use crate::vm::LuauVm;
 
 const DEFAULT_HOSTNAME: &str = "hostname";
 
-pub trait PsPrompt {
+trait PsPrompt {
 	fn ps_prompt(&self) -> lResult<Table>;
 }
 impl PsPrompt for LuauVm {
@@ -19,16 +20,16 @@ impl PsPrompt for LuauVm {
 		})?)?;
 		prompt_table.set("__metatable", mlua::Nil)?;
 		prompt_table.set_metatable(Some(prompt_metatable));
+		prompt_table.set_readonly(false);
 		Ok(prompt_table)
 	}
 }
 
-pub trait System {
-	fn sys_details(&self, shell: &Table) -> lResult<()>;
-	fn shell_globals(&self, luau_globals: &Table) -> lResult<()>;
+trait System {
+	fn sys_details(&self) -> lResult<Table>;
 }
 impl System for LuauVm {
-	fn sys_details(&self, shell: &Table) -> lResult<()> {
+	fn sys_details(&self) -> lResult<Table> {
 		let system = self.0.create_table()?;
 		system.set("DESKTOP_ENV", whoami::desktop_env().to_string())?;
 		system.set("DEVICENAME", whoami::devicename().to_string())?;
@@ -37,14 +38,18 @@ impl System for LuauVm {
 		system.set("PLATFORM", whoami::platform().to_string())?;
 		system.set("DISTRO", whoami::distro().to_string())?;
 		system.set("HOSTNAME", fallible::hostname().unwrap_or(DEFAULT_HOSTNAME.to_owned()))?;
-		shell.set("SYSTEM", system)?;
-		Ok(())
+		Ok(system)
 	}
+}
 
-	fn shell_globals(&self, luau_globals: &Table) -> lResult<()> {
+pub trait Shell {
+	fn global_shell(&self, luau_globals: &Table) -> lResult<()>;
+}
+impl Shell for LuauVm {
+	fn global_shell(&self, luau_globals: &Table) -> lResult<()> {
 		let shell = self.0.create_table()?;
 		let ps_prompt = self.ps_prompt()?;
-		self.sys_details(&shell)?;
+		shell.set("SYSTEM", self.sys_details()?)?;
 		shell.set("PROMPT", ps_prompt)?;
 		luau_globals.set("SHELL", shell)?;
 		Ok(())

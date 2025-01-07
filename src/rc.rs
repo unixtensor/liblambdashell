@@ -1,9 +1,13 @@
-use std::{fs::{self, File}, io::{self, Write}, path::PathBuf};
+use std::{path::PathBuf, fs::{self, File}, io::{self, Write}};
 use thiserror::Error;
+
+use crate::MapDisplay;
 
 pub const DEFAULT_CONFIG_CONTENT: &str = r#"--!strict
 
-local username = SHELL.SYSTEM.USERNAME
+local cyan = TERMINAL.OUT.FOREGROUND.CYAN
+
+local username = cyan(SHELL.SYSTEM.USERNAME)
 local hostname = SHELL.SYSTEM.HOSTNAME
 
 SHELL.PROMPT = `{username}@{hostname} λ `"#;
@@ -23,11 +27,6 @@ enum IsValidDirErr {
 enum CreateErr {
 	TryExists(io::Error),
 	Passable
-}
-
-fn display_none<T>(e: io::Error) -> Option<T> {
-	println!("{e}");
-	None
 }
 
 #[allow(dead_code)]
@@ -56,37 +55,24 @@ impl IsValid for PathBuf {
 	where
 		F: FnOnce() -> Option<PathBuf>
 	{
-		let possible_content = self.is_valid(is_content).map_err(|e| match e {
+		self.is_valid(is_content).map_err(|e| match e {
 			IsValidDirErr::TryExists(try_e) => CreateErr::TryExists(try_e),
 			IsValidDirErr::NotAnEntry | IsValidDirErr::Missing => CreateErr::Passable
-		});
-		match possible_content {
-			Ok(p) => Some(p),
-			Err(e) => match e {
-				CreateErr::TryExists(_) => None,
-				CreateErr::Passable => f()
-			},
-		}
+		}).map_or_else(|e| match e {
+			CreateErr::TryExists(_) => None,
+			CreateErr::Passable => f()
+		}, Some)
 	}
 
 	fn is_valid_dir_or_create(&self) -> Option<PathBuf> {
-		self.is_valid_or(self.is_dir(), || {
-			match fs::create_dir(self) {
-				Ok(()) => Some(self.to_path_buf()),
-				Err(create_e) => display_none(create_e),
-			}
-		})
+		self.is_valid_or(self.is_dir(), || fs::create_dir(self).map_or_display_none(|()| Some(self.to_path_buf())))
 	}
 
 	fn is_valid_file_or_create(&self, default_file_bytes: &[u8]) -> Option<PathBuf> {
 		self.is_valid_or(self.is_file(), || {
-			match File::create(self) {
-				Ok(mut file) => match file.write_all(default_file_bytes) {
-					Ok(()) => Some(self.to_path_buf()),
-					Err(write_e) => display_none(write_e),
-				},
-				Err(create_e) => display_none(create_e)
-			}
+			File::create(self).map_or_display_none(|mut file| {
+				file.write_all(default_file_bytes).map_or_display_none(|()| Some(self.to_path_buf()))
+			})
 		})
 	}
 
@@ -98,7 +84,7 @@ impl IsValid for PathBuf {
 pub fn config_dir() -> Option<PathBuf> {
 	let mut config = home::home_dir()?;
 	config.push(".config");
-	config.is_valid_option(config.is_dir())?;
+	config.is_valid_dir_or_create()?;
 	config.push("lambdashell");
 	config.is_valid_dir_or_create()
 }

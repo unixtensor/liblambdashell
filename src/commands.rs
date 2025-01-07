@@ -6,14 +6,11 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+use crate::MapDisplay;
+
 enum ValidStatus {
 	NoRootFolder,
 	TryExists(io::Error)
-}
-
-fn display_none<T>(e: io::Error) -> Option<T> {
-	println!("{e}");
-	None
 }
 
 trait PathBufIsValid {
@@ -55,7 +52,7 @@ impl PathBufIsValid for PathBuf {
 
 impl ChangeDirectory for Command {
 	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf> {
-		std::env::set_current_dir(new_path).map_or_else(display_none, |()| Some(new_path.to_path_buf()))
+		std::env::set_current_dir(new_path).map_or_display_none(|()| Some(new_path.to_path_buf()))
 	}
 
 	fn home_dir(&self) -> Option<PathBuf> {
@@ -127,7 +124,7 @@ impl Command {
 	}
 
 	pub fn spawn(&self, command_process: io::Result<process::Child>) {
-		command_process.map_or_else(display_none, |mut child| Some(child.wait()));
+		command_process.map_or_display_none(|mut child| Some(child.wait()));
 	}
 
 	pub fn exec(&self) {
