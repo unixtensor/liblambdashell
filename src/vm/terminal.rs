@@ -7,7 +7,7 @@ use crate::vm::LuauVm;
 macro_rules! foreground_styles_luau {
 	($self:expr, $style_table:expr, $($color:ident)+) => {
 		$(
-			$style_table.set(stringify!($color).to_ascii_uppercase(), $self.0.create_function(|_, text: String| -> lResult<String> {
+			$style_table.set(stringify!($color).to_ascii_uppercase(), $self.vm.create_function(|_, text: String| -> lResult<String> {
             	Ok(text.$color().to_string())
         	})?)?;
         )+
@@ -18,7 +18,7 @@ macro_rules! background_styles_luau {
 		$(
 			$style_table.set(
 				str_split!(stringify!($color), "_")[1..].join("_").to_ascii_uppercase(),
-			$self.0.create_function(|_, text: String| -> lResult<String> {
+			$self.vm.create_function(|_, text: String| -> lResult<String> {
 				Ok(text.$color().to_string())
         	})?)?;
         )+
@@ -31,7 +31,7 @@ trait Colors {
 }
 impl Colors for LuauVm {
 	fn background(&self, term_out_table: &Table) -> lResult<()> {
-		let foreground_table = self.0.create_table()?;
+		let foreground_table = self.vm.create_table()?;
 		foreground_styles_luau!(self, foreground_table,
 			dark_grey   dark_red     dark_green dark_cyan
 			dark_yellow dark_magenta dark_blue
@@ -48,7 +48,7 @@ impl Colors for LuauVm {
 	}
 
 	fn foreground(&self, term_out_table: &Table) -> lResult<()> {
-		let background_table = self.0.create_table()?;
+		let background_table = self.vm.create_table()?;
 		background_styles_luau!(self, background_table,
 			on_dark_grey   on_dark_red     on_dark_green on_dark_cyan
 			on_dark_yellow on_dark_magenta on_dark_blue
@@ -68,21 +68,21 @@ trait Write {
 }
 impl Write for LuauVm {
 	fn write(&self) -> lResult<Function> {
-		self.0.create_function(|_, s: String| -> lResult<()> {
+		self.vm.create_function(|_, s: String| -> lResult<()> {
 			print!("{s}");
 			Ok(())
 		})
 	}
 
 	fn write_error(&self) -> lResult<Function> {
-		self.0.create_function(|_, s: String| -> lResult<()> {
+		self.vm.create_function(|_, s: String| -> lResult<()> {
 			eprint!("{s}");
 			Ok(())
 		})
 	}
 
 	fn write_error_ln(&self) -> lResult<Function> {
-		self.0.create_function(|_, s: String| -> lResult<()> {
+		self.vm.create_function(|_, s: String| -> lResult<()> {
 			eprintln!("{s}");
 			Ok(())
 		})
@@ -95,14 +95,14 @@ pub trait Terminal {
 }
 impl Terminal for LuauVm {
 	fn out(&self) -> lResult<Table> {
-		let term_out_table = self.0.create_table()?;
+		let term_out_table = self.vm.create_table()?;
 		self.background(&term_out_table)?;
 		self.foreground(&term_out_table)?;
 		Ok(term_out_table)
 	}
 
 	fn global_terminal(&self, luau_globals: &Table) -> lResult<()> {
-		let term_table = self.0.create_table()?;
+		let term_table = self.vm.create_table()?;
 		term_table.set("OUT", self.out()?)?;
 		term_table.set("WRITE", self.write()?)?;
 		term_table.set("WRITE_ERROR", self.write_error()?)?;

@@ -3,7 +3,7 @@ use color_print::{cformat, ceprintln};
 use core::fmt;
 use shell::Shell;
 
-use crate::{vm::terminal::Terminal, MapDisplay};
+use crate::{ps::Ps, vm::terminal::Terminal, MapDisplay};
 
 mod shell;
 mod terminal;
@@ -24,20 +24,22 @@ impl<T, E: fmt::Display> LuauRuntimeErr<T> for Result<T, E> {
 
 trait Globals {
 	const LIB_VERSION: &str;
+	const CONV_ERROR: &str;
 	fn global_warn(&self, luau_globals: &Table) -> lResult<()>;
 	fn global_version(&self, luau_globals: &Table) -> lResult<()>;
 }
 impl Globals for LuauVm {
 	const LIB_VERSION: &str = env!("CARGO_PKG_VERSION");
+	const CONV_ERROR: &str = "<SHELL CONVERSION ERROR>";
 
 	fn global_warn(&self, luau_globals: &Table) -> lResult<()> {
 		let luau_print = luau_globals.get::<Function>("print")?;
-		luau_globals.set("warn", self.0.create_function(move |this, args: MultiValue| -> lResult<()> {
+		luau_globals.set("warn", self.vm.create_function(move |this, args: MultiValue| -> lResult<()> {
 			let luau_multi_values = args.into_iter()
-				.map(|value| cformat!("<bold,y>{}</>", value.to_string().unwrap_or("<SHELL CONVERSION ERROR>".to_owned())))
+				.map(|value| cformat!("<bold,y>{}</>", value.to_string().unwrap_or(Self::CONV_ERROR.to_owned())))
 				.map(|arg_v| Value::String(this.create_string(arg_v).unwrap()))
 				.collect::<MultiValue>();
-			luau_print.call::<()>(luau_multi_values).unwrap();
+			luau_print.call::<()>(luau_multi_values)?;
 			Ok(())
 		})?)
 	}
@@ -48,27 +50,28 @@ impl Globals for LuauVm {
 	}
 }
 
-pub struct LuauVm(pub Luau);
+pub struct LuauVm {
+	vm: Luau,
+	ps: Ps,
+}
 impl LuauVm {
-	pub(crate) fn new() -> Self {
-		Self(Luau::new())
+	pub(crate) fn new(ps: Ps) -> Self {
+		Self { vm: Luau::new(), ps }
 	}
 
 	fn set_shell_globals(&self) -> lResult<()> {
-		let luau_globals = self.0.globals();
+		let luau_globals = self.vm.globals();
 		self.global_warn(&luau_globals)?;
 		self.global_version(&luau_globals)?;
 		self.global_terminal(&luau_globals)?;
 		self.global_shell(&luau_globals)?;
 		luau_globals.set("getfenv", mlua::Nil)?;
 		luau_globals.set("setfenv", mlua::Nil)?;
-		self.0.sandbox(true)?;
+		self.vm.sandbox(true)?;
 		Ok(())
 	}
 
 	pub fn exec(&self, source: String) {
-		self.set_shell_globals().map_or_display_none(|()| {
-			self.0.load(source).exec().map_or_luau_rt_err(Some)
-		});
+		self.set_shell_globals().map_or_display_none(|()| self.vm.load(source).exec().map_or_luau_rt_err(Some));
 	}
 }

@@ -1,9 +1,16 @@
-pub const DEFAULT_PS: &str = concat!("lambdashell-", env!("CARGO_PKG_VERSION"));
+pub const DEFAULT_PS: &str = concat!("lambdashell-", env!("CARGO_PKG_VERSION"), " ");
 
+#[derive(Debug, Clone)]
 pub struct Ps(String);
 impl Ps {
 	pub fn set(prompt: String) -> Self {
 		Self(prompt)
+	}
+	pub fn get(self) -> String {
+		self.0
+	}
+	pub fn display(&self) {
+		print!("{}", self.0);
 	}
 
 	pub fn working_dir_name(&self) -> String {
@@ -16,9 +23,5 @@ impl Ps {
 				}
 			})
 		})
-	}
-
-	pub fn display(&self) {
-		print!("{}", self.0);
 	}
 }
