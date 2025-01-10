@@ -12,9 +12,3 @@ mlua = { version = "0.10.0", features = ["luau-jit", "vendored"] }
 thiserror = "2.0.9"
 uzers = "0.12.1"
 whoami = "1.5.2"
-
-[profile.release]
-strip = true
-opt-level = "z"
-lto = true
-codegen-units = 1

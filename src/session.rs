@@ -1,4 +1,4 @@
-use std::{fs, io::{self}};
+use std::{cell::RefCell, fs, io::{self}, rc::Rc};
 use core::fmt;
 
 use crate::{
@@ -14,16 +14,16 @@ pub struct LambdaShell {
 	terminate: bool,
 	config: Config,
 	vm: LuauVm,
-	ps: Ps,
+	ps: Rc<RefCell<Ps>>,
 }
 impl LambdaShell {
 	pub fn create(config: Config) -> Self {
-		let ps = Ps::set(ps::DEFAULT_PS.to_owned());
+		let ps = Rc::new(RefCell::new(Ps::set(ps::DEFAULT_PS.to_owned())));
 		Self {
-			vm: vm::LuauVm::new(ps.to_owned()),
+			ps: Rc::clone(&ps),
+			vm: vm::LuauVm::new(ps),
 			terminate: false,
 			config,
-			ps
 		}
 	}
 
@@ -48,12 +48,12 @@ impl LambdaShell {
 				fs::read_to_string(conf_file).map_or_display(|luau_conf| self.vm_exec(luau_conf));
 			}
 		}
-		self.ps.display();
 
+		self.ps.borrow().display();
 		loop {
 			if self.terminate { break } else {
 				match self.wait() {
-			        Ok(()) => self.ps.display(),
+			        Ok(()) => self.ps.borrow().display(),
 			        Err(flush_err) => self.error(flush_err),
 			    }
 			}

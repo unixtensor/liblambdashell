@@ -1,5 +1,6 @@
 use mlua::{Function, Lua as Luau, MultiValue, Result as lResult, Table, Value};
 use color_print::{cformat, ceprintln};
+use std::{cell::RefCell, rc::Rc};
 use core::fmt;
 use shell::Shell;
 
@@ -34,7 +35,7 @@ impl Globals for LuauVm {
 
 	fn global_warn(&self, luau_globals: &Table) -> lResult<()> {
 		let luau_print = luau_globals.get::<Function>("print")?;
-		luau_globals.set("warn", self.vm.create_function(move |this, args: MultiValue| -> lResult<()> {
+		luau_globals.raw_set("warn", self.vm.create_function(move |this, args: MultiValue| -> lResult<()> {
 			let luau_multi_values = args.into_iter()
 				.map(|value| cformat!("<bold,y>{}</>", value.to_string().unwrap_or(Self::CONV_ERROR.to_owned())))
 				.map(|arg_v| Value::String(this.create_string(arg_v).unwrap()))
@@ -46,27 +47,30 @@ impl Globals for LuauVm {
 
 	fn global_version(&self, luau_globals: &Table) -> lResult<()> {
 		let luau_info = luau_globals.get::<String>("_VERSION")?;
-		luau_globals.set("_VERSION", format!("{luau_info}, liblambdashell {}", Self::LIB_VERSION))
+		luau_globals.raw_set("_VERSION", format!("{luau_info}, liblambdashell {}", Self::LIB_VERSION))
 	}
 }
 
 pub struct LuauVm {
 	vm: Luau,
-	ps: Ps,
+	ps: Rc<RefCell<Ps>>
 }
 impl LuauVm {
-	pub(crate) fn new(ps: Ps) -> Self {
-		Self { vm: Luau::new(), ps }
+	pub(crate) fn new(ps: Rc<RefCell<Ps>>) -> Self {
+		Self {
+			vm: Luau::new(),
+			ps
+		}
 	}
 
 	fn set_shell_globals(&self) -> lResult<()> {
 		let luau_globals = self.vm.globals();
+		self.global_shell(&luau_globals)?;
+		self.global_terminal(&luau_globals)?;
 		self.global_warn(&luau_globals)?;
 		self.global_version(&luau_globals)?;
-		self.global_terminal(&luau_globals)?;
-		self.global_shell(&luau_globals)?;
-		luau_globals.set("getfenv", mlua::Nil)?;
-		luau_globals.set("setfenv", mlua::Nil)?;
+		luau_globals.raw_set("getfenv", mlua::Nil)?;
+		luau_globals.raw_set("setfenv", mlua::Nil)?;
 		self.vm.sandbox(true)?;
 		Ok(())
 	}
