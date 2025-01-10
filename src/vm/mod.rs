@@ -57,10 +57,7 @@ pub struct LuauVm {
 }
 impl LuauVm {
 	pub(crate) fn new(ps: Rc<RefCell<Ps>>) -> Self {
-		Self {
-			vm: Luau::new(),
-			ps
-		}
+		Self { vm: Luau::new(), ps }
 	}
 
 	fn set_shell_globals(&self) -> lResult<()> {

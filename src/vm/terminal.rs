@@ -7,7 +7,7 @@ use crate::vm::LuauVm;
 macro_rules! foreground_styles_luau {
 	($self:expr, $style_table:expr, $($color:ident)+) => {
 		$(
-			$style_table.set(stringify!($color).to_ascii_uppercase(), $self.vm.create_function(|_, text: String| -> lResult<String> {
+			$style_table.raw_set(stringify!($color).to_ascii_uppercase(), $self.vm.create_function(|_, text: String| -> lResult<String> {
             	Ok(text.$color().to_string())
         	})?)?;
         )+
@@ -16,7 +16,7 @@ macro_rules! foreground_styles_luau {
 macro_rules! background_styles_luau {
 	($self:expr, $style_table:expr, $($color:ident)+) => {
 		$(
-			$style_table.set(
+			$style_table.raw_set(
 				str_split!(stringify!($color), "_")[1..].join("_").to_ascii_uppercase(),
 			$self.vm.create_function(|_, text: String| -> lResult<String> {
 				Ok(text.$color().to_string())
@@ -44,7 +44,7 @@ impl Colors for LuauVm {
 			underline_blue        underline_magenta      underline_cyan       underline_white
 			bold
 		);
-		term_out_table.set("FOREGROUND", foreground_table)
+		term_out_table.raw_set("FOREGROUND", foreground_table)
 	}
 
 	fn foreground(&self, term_out_table: &Table) -> lResult<()> {
@@ -57,7 +57,7 @@ impl Colors for LuauVm {
 		    on_blue  on_magenta
 		    on_cyan  on_white
 		);
-		term_out_table.set("BACKGROUND", background_table)
+		term_out_table.raw_set("BACKGROUND", background_table)
 	}
 }
 
@@ -73,14 +73,12 @@ impl Write for LuauVm {
 			Ok(())
 		})
 	}
-
 	fn write_error(&self) -> lResult<Function> {
 		self.vm.create_function(|_, s: String| -> lResult<()> {
 			eprint!("{s}");
 			Ok(())
 		})
 	}
-
 	fn write_error_ln(&self) -> lResult<Function> {
 		self.vm.create_function(|_, s: String| -> lResult<()> {
 			eprintln!("{s}");
@@ -103,10 +101,10 @@ impl Terminal for LuauVm {
 
 	fn global_terminal(&self, luau_globals: &Table) -> lResult<()> {
 		let term_table = self.vm.create_table()?;
-		term_table.set("OUT", self.out()?)?;
-		term_table.set("WRITE", self.write()?)?;
-		term_table.set("WRITE_ERROR", self.write_error()?)?;
-		term_table.set("WRITE_ERROR_LN", self.write_error_ln()?)?;
-		luau_globals.set("TERMINAL", term_table)
+		term_table.raw_set("OUT", self.out()?)?;
+		term_table.raw_set("WRITE", self.write()?)?;
+		term_table.raw_set("WRITE_ERROR", self.write_error()?)?;
+		term_table.raw_set("WRITE_ERROR_LN", self.write_error_ln()?)?;
+		luau_globals.raw_set("TERMINAL", term_table)
 	}
 }
