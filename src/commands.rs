@@ -6,7 +6,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use crate::{rc::History, MapDisplay};
+use crate::{history::History, MapDisplay};
 
 enum ValidStatus {
 	NoRootFolder,
@@ -126,11 +126,15 @@ impl Command {
 		}
 	}
 
+	pub fn write_history(&mut self) {
+		if let Some(history_file) = self.history.as_mut() {
+			history_file.write(&self.input);
+		};
+	}
+
 	pub fn spawn_handle(&mut self, command_process: io::Result<process::Child>) {
 		if let Ok(mut child) = command_process {
-			if let Some(history_file) = self.history.as_mut() {
-				history_file.write(&self.input);
-			};
+			self.write_history();
 			child.wait().ok();
 		} else {
 			println!("Unknown command: {}", self.input)
