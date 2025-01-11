@@ -2,7 +2,7 @@ use std::{cell::RefCell, fs, io::{self}, rc::Rc};
 use core::fmt;
 
 use crate::{
-	commands, ps::{self, Ps}, rc, shell_error, vm::{self, LuauVm}, MapDisplay
+	commands, ps::{self, Ps}, rc::{self}, shell_error, vm::{self, LuauVm}, MapDisplay
 };
 
 #[derive(Debug, Clone)]
@@ -48,7 +48,6 @@ impl LambdaShell {
 				fs::read_to_string(conf_file).map_or_display(|luau_conf| self.vm_exec(luau_conf));
 			}
 		}
-
 		self.ps.borrow().display();
 		loop {
 			if self.terminate { break } else {

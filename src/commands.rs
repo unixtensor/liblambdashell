@@ -6,27 +6,16 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use crate::MapDisplay;
+use crate::{rc::History, MapDisplay};
 
 enum ValidStatus {
 	NoRootFolder,
 	TryExists(io::Error)
 }
-
 trait PathBufIsValid {
 	fn is_valid(&self) -> Result<PathBuf, ValidStatus>;
 	fn is_valid_or_home(&self) -> Option<PathBuf>;
 }
-
-trait ChangeDirectory {
-	fn change_directory(&self, args: SplitWhitespace) -> Option<PathBuf>;
-	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf>;
-	fn specific_user_dir(&self, user: String) -> Option<PathBuf>;
-	fn cd_args(&self, vec_args: Vec<String>) -> Option<PathBuf>;
-	fn previous_dir(&self) -> Option<PathBuf>;
-	fn home_dir(&self) -> Option<PathBuf>;
-}
-
 impl PathBufIsValid for PathBuf {
 	fn is_valid(&self) -> Result<PathBuf, ValidStatus> {
 		match self.try_exists() {
@@ -50,6 +39,14 @@ impl PathBufIsValid for PathBuf {
 	}
 }
 
+trait ChangeDirectory {
+	fn change_directory(&self, args: SplitWhitespace) -> Option<PathBuf>;
+	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf>;
+	fn specific_user_dir(&self, user: String) -> Option<PathBuf>;
+	fn cd_args(&self, vec_args: Vec<String>) -> Option<PathBuf>;
+	fn previous_dir(&self) -> Option<PathBuf>;
+	fn home_dir(&self) -> Option<PathBuf>;
+}
 impl ChangeDirectory for Command {
 	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf> {
 		std::env::set_current_dir(new_path).map_or_display_none(|()| Some(new_path.to_path_buf()))
@@ -117,26 +114,39 @@ impl ChangeDirectory for Command {
 	}
 }
 
-pub struct Command(String);
+pub struct Command {
+	input: String,
+	history: Option<History>
+}
 impl Command {
 	pub fn new(input: String) -> Self {
-		Self(input)
+		Self {
+			history: History::init(),
+			input
+		}
+	}
+
+	pub fn history_write(&self) {
+		if let Some(history_file) = &self.history {
+			history_file.write(&self.input);
+		};
 	}
 
 	pub fn spawn(&self, command_process: io::Result<process::Child>) {
-		command_process.map_or_display_none(|mut child| Some(child.wait()));
+		if let Ok(mut child) = command_process {
+			self.history_write();
+			child.wait().ok();
+		} else {
+			println!("Unknown command: {}", self.input)
+		}
 	}
 
 	pub fn exec(&self) {
-		let mut args = self.0.split_whitespace();
+		let mut args = self.input.split_whitespace();
 		if let Some(command) = args.next() {
 			match command {
-				"cd" => {
-					self.change_directory(args);
-				},
-				command => {
-					self.spawn(process::Command::new(command).args(args).spawn());
-				}
+				"cd" => { self.change_directory(args); },
+				command => { self.spawn(process::Command::new(command).args(args).spawn()); }
 			}
 		}
 	}

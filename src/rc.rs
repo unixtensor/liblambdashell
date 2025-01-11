@@ -1,7 +1,7 @@
-use std::{path::PathBuf, fs::{self, File}, io::{self, Write}};
+use std::{fs::{self, File, OpenOptions}, io::{self, BufRead, BufReader, Write}, path::PathBuf};
 use thiserror::Error;
 
-use crate::MapDisplay;
+use crate::{shell_error, MapDisplay};
 
 pub const DEFAULT_CONFIG_CONTENT: &str = r#"--!strict
 
@@ -95,9 +95,30 @@ pub fn config_file() -> Option<PathBuf> {
 	config_file.is_valid_file_or_create(DEFAULT_CONFIG_CONTENT.as_bytes())
 }
 
-// TODO: history.rs
-pub fn history_file() -> Option<PathBuf> {
-	let mut config_file = config_dir()?;
-	config_file.push(".history");
-	config_file.is_valid_file_or_create(b"")
+pub struct History(PathBuf);
+impl History {
+	pub fn init() -> Option<Self> {
+		config_dir().map(|mut config| {
+			config.push(".history");
+			config.is_valid_file_or_create(b"");
+			Self(config)
+		})
+	}
+
+	pub fn write<S: AsRef<str>>(&self, content: S) {
+		//feasible hack instead of using about 10 functions
+		OpenOptions::new().append(true).open(self.0.as_path()).map_or_display(|mut file| {
+			const NEXTLINE: &str = "\n";
+
+			if let Err(write_err) = file.write_all(format!("{}{}", NEXTLINE, content.as_ref()).as_bytes()) {
+				shell_error(write_err);
+			};
+		});
+	}
+
+	pub fn read(&self) -> Option<Vec<String>> {
+		File::open(&self.0).map_or_display_none(|file| {
+			Some(BufReader::new(file).lines().map_while(Result::ok).collect::<Vec<String>>())
+		})
+	}
 }
