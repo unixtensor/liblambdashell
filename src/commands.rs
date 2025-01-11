@@ -126,27 +126,23 @@ impl Command {
 		}
 	}
 
-	pub fn history_write(&self) {
-		if let Some(history_file) = &self.history {
-			history_file.write(&self.input);
-		};
-	}
-
-	pub fn spawn(&self, command_process: io::Result<process::Child>) {
+	pub fn spawn_handle(&mut self, command_process: io::Result<process::Child>) {
 		if let Ok(mut child) = command_process {
-			self.history_write();
+			if let Some(history_file) = self.history.as_mut() {
+				history_file.write(&self.input);
+			};
 			child.wait().ok();
 		} else {
 			println!("Unknown command: {}", self.input)
 		}
 	}
 
-	pub fn exec(&self) {
+	pub fn exec(&mut self) {
 		let mut args = self.input.split_whitespace();
 		if let Some(command) = args.next() {
 			match command {
 				"cd" => { self.change_directory(args); },
-				command => { self.spawn(process::Command::new(command).args(args).spawn()); }
+				command => { self.spawn_handle(process::Command::new(command).args(args).spawn()); }
 			}
 		}
 	}

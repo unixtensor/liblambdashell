@@ -95,29 +95,46 @@ pub fn config_file() -> Option<PathBuf> {
 	config_file.is_valid_file_or_create(DEFAULT_CONFIG_CONTENT.as_bytes())
 }
 
-pub struct History(PathBuf);
+pub struct History {
+	history_file: PathBuf,
+	checked_empty: bool
+}
 impl History {
 	pub fn init() -> Option<Self> {
 		config_dir().map(|mut config| {
 			config.push(".history");
 			config.is_valid_file_or_create(b"");
-			Self(config)
+			Self {
+				history_file: config,
+				checked_empty: false
+			}
 		})
 	}
 
-	pub fn write<S: AsRef<str>>(&self, content: S) {
-		//feasible hack instead of using about 10 functions
-		OpenOptions::new().append(true).open(self.0.as_path()).map_or_display(|mut file| {
-			const NEXTLINE: &str = "\n";
+	pub fn is_empty(&mut self) -> bool {
+		match self.checked_empty {
+			true => true,
+			false => self.read().map_or(false, |history_l| {
+				self.checked_empty = true;
+				history_l.is_empty()
+			})
+		}
+	}
 
-			if let Err(write_err) = file.write_all(format!("{}{}", NEXTLINE, content.as_ref()).as_bytes()) {
+	pub fn write<S: AsRef<str>>(&mut self, content: S) {
+		OpenOptions::new().append(true).open(self.history_file.as_path()).map_or_display(|mut file| {
+			let write_data = match self.is_empty() {
+			    true => content.as_ref().to_owned(),
+			    false => format!("\n{}", content.as_ref()),
+			};
+			if let Err(write_err) = file.write_all(write_data.as_bytes()) {
 				shell_error(write_err);
 			};
 		});
 	}
 
 	pub fn read(&self) -> Option<Vec<String>> {
-		File::open(&self.0).map_or_display_none(|file| {
+		File::open(&self.history_file).map_or_display_none(|file| {
 			Some(BufReader::new(file).lines().map_while(Result::ok).collect::<Vec<String>>())
 		})
 	}
