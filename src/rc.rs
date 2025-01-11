@@ -6,9 +6,12 @@ use crate::MapDisplay;
 pub const DEFAULT_CONFIG_CONTENT: &str = r#"--!strict
 
 local cyan = TERMINAL.OUT.FOREGROUND.CYAN
+local red  = TERMINAL.OUT.FOREGROUND.RED
 
-local username = cyan(SHELL.SYSTEM.USERNAME)
 local hostname = SHELL.SYSTEM.HOSTNAME
+local username = SHELL.SYSTEM.USERNAME
+
+username = if username == "root" then red(username) else cyan(username)
 
 SHELL.PROMPT = `{username}@{hostname} λ `"#;
 

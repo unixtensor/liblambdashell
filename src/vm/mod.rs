@@ -1,10 +1,11 @@
 use mlua::{Function, Lua as Luau, MultiValue, Result as lResult, Table, Value};
 use color_print::{cformat, ceprintln};
+use terminal::TerminalGlobal;
 use std::{cell::RefCell, rc::Rc};
 use core::fmt;
-use shell::Shell;
+use shell::ShellGlobal;
 
-use crate::{ps::Ps, vm::terminal::Terminal, MapDisplay};
+use crate::{ps::Ps, MapDisplay};
 
 mod shell;
 mod terminal;

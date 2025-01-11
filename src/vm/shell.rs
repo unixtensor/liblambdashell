@@ -19,8 +19,8 @@ fn luau_sys_details(luau: &Luau) -> lResult<Table> {
 	Ok(system)
 }
 
-struct ShellUserdata(Rc<RefCell<Ps>>);
-impl UserData for ShellUserdata {
+struct Shell(Rc<RefCell<Ps>>);
+impl UserData for Shell {
 	fn add_fields<F: UserDataFields<Self>>(fields: &mut F) {
 		fields.add_field_method_get("PROMPT", |_, this| Ok(this.0.borrow().get().to_owned()));
 		fields.add_field_method_get("SYSTEM", |luau, _| luau_sys_details(luau));
@@ -36,15 +36,12 @@ impl UserData for ShellUserdata {
 	}
 }
 
-pub trait Shell {
+pub trait ShellGlobal {
 	fn global_shell(&self, luau_globals: &Table) -> lResult<()>;
 }
-impl Shell for LuauVm {
+impl ShellGlobal for LuauVm {
 	fn global_shell(&self, luau_globals: &Table) -> lResult<()> {
-		// let shell = self.vm.create_table()?;
-		// shell.set("SYSTEM", self.sys_details()?)?;
-		// shell.set("PROMPT", self.ps_prompt()?)?;
-		luau_globals.set("SHELL", ShellUserdata(Rc::clone(&self.ps)))?;
+		luau_globals.set("SHELL", Shell(Rc::clone(&self.ps)))?;
 		Ok(())
 	}
 }
