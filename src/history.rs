@@ -4,18 +4,42 @@ use crate::{rc::{self}, session::{self, MapDisplay}, valid_pbuf::IsValid};
 
 #[derive(Debug, Clone)]
 pub struct History {
-	file: Option<PathBuf>,
+	fs_history: Option<Vec<String>>,
 	history: Vec<String>,
+	file: Option<PathBuf>,
 }
 impl History {
 	pub fn init() -> Self {
+		let file = rc::config_dir().map(|mut config_dir| {
+			config_dir.push(".history");
+			config_dir.is_valid_file_or_create(b"");
+			config_dir
+		});
+		let fs_history = file.as_ref().and_then(|file| {
+			File::open(file).map_or_display_none(|file| {
+				Some(BufReader::new(file).lines().map_while(Result::ok).collect::<Vec<String>>())
+			})
+		});
 		Self {
 			history: Vec::new(),
-			file: rc::config_dir().map(|mut history_pbuf| {
-				history_pbuf.push(".history");
-				history_pbuf.is_valid_file_or_create(b"");
-				history_pbuf
-			}),
+			fs_history,
+			file,
+		}
+	}
+
+	pub fn write_to_file_fallible(&mut self) {
+		if self.history.is_empty() { return; }
+
+		if let (Some(history_file), Some(fs_history)) = (&self.file, &self.fs_history) {
+			OpenOptions::new()
+				.append(true)
+				.open(history_file.as_path())
+			.map_or_display(|mut file| {
+				let newline_maybe = if fs_history.is_empty() { "" } else { "\n" };
+				if let Err(write_err) = file.write_all(format!("{newline_maybe}{}", self.history.join("\n")).as_bytes()) {
+					session::shell_error(write_err);
+				};
+			});
 		}
 	}
 
@@ -24,29 +48,5 @@ impl History {
 		    Some(last_cmd) => if last_cmd != command { self.history.push(command.to_owned()); },
 		    None => self.history.push(command.to_owned()),
 		};
-	}
-
-	pub fn write_to_file_fallible(&mut self) {
-		if !self.history.is_empty() {
-			if let Some(history_file) = &self.file {
-				OpenOptions::new().append(true).open(history_file.as_path()).map_or_display(|mut file| {
-					let history_content = match self.history.len()==1 {
-						true => format!("\n{}", self.history[0]),
-						false => self.history.join("\n")
-					};
-					if let Err(write_err) = file.write_all(history_content.as_bytes()) {
-						session::shell_error(write_err);
-					};
-				});
-			}
-		}
-	}
-
-	pub fn read_file_fallible(&self) -> Option<Vec<String>> {
-		self.file.as_ref().and_then(|history_file| {
-			File::open(history_file).map_or_display_none(|file| {
-				Some(BufReader::new(file).lines().map_while(Result::ok).collect::<Vec<String>>())
-			})
-		})
 	}
 }
