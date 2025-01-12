@@ -1,41 +1,14 @@
+use std::{io, process, str::SplitWhitespace, path::{Path, PathBuf}};
 use uzers::User;
-use std::{
-	io,
-	process,
-	str::SplitWhitespace,
-	path::{Path, PathBuf},
-};
 
-use crate::{history::History, MapDisplay};
+use crate::{history::History, session::MapDisplay, valid_pbuf::IsValid};
 
-enum ValidStatus {
-	NoRootFolder,
-	TryExists(io::Error)
-}
 trait PathBufIsValid {
-	fn is_valid(&self) -> Result<PathBuf, ValidStatus>;
 	fn is_valid_or_home(&self) -> Option<PathBuf>;
 }
 impl PathBufIsValid for PathBuf {
-	fn is_valid(&self) -> Result<PathBuf, ValidStatus> {
-		match self.try_exists() {
-			Ok(true) => Ok(self.to_path_buf()),
-			Ok(false) => Err(ValidStatus::NoRootFolder),
-			Err(trye_error) => Err(ValidStatus::TryExists(trye_error))
-		}
-	}
-
 	fn is_valid_or_home(&self) -> Option<PathBuf> {
-		match self.is_valid() {
-			Ok(valid) => Some(valid),
-			Err(valid_status) => {
-				match valid_status {
-					ValidStatus::NoRootFolder => println!("cd: /root: No such file or directory"),
-					ValidStatus::TryExists(error) => println!("cd: {error}"),
-				};
-				None
-			},
-		}
+		self.is_valid_or(self.is_dir(), home::home_dir)
 	}
 }
 
@@ -114,39 +87,27 @@ impl ChangeDirectory for Command {
 	}
 }
 
-pub struct Command {
-	input: String,
-	history: Option<History>
-}
+pub struct Command(String);
 impl Command {
-	pub fn new(input: String) -> Self {
-		Self {
-			history: History::init(),
-			input
-		}
+	pub const fn new(input: String) -> Self {
+		Self(input)
 	}
 
-	pub fn write_history(&mut self) {
-		if let Some(history_file) = self.history.as_mut() {
-			history_file.write(&self.input);
-		};
-	}
-
-	pub fn spawn_handle(&mut self, command_process: io::Result<process::Child>) {
+	pub fn spawn_sys_cmd(&mut self, history: &mut History, command_process: io::Result<process::Child>) {
 		if let Ok(mut child) = command_process {
-			self.write_history();
+			history.add(self.0.as_str());
 			child.wait().ok();
 		} else {
-			println!("Unknown command: {}", self.input)
+			println!("Unknown command: {}", self.0)
 		}
 	}
 
-	pub fn exec(&mut self) {
-		let mut args = self.input.split_whitespace();
+	pub fn exec(&mut self, history: &mut History) {
+		let mut args = self.0.split_whitespace();
 		if let Some(command) = args.next() {
 			match command {
-				"cd" => { self.change_directory(args); },
-				command => { self.spawn_handle(process::Command::new(command).args(args).spawn()); }
+				"cd" => if self.change_directory(args).is_some() { history.add(self.0.as_str()) },
+				command => { self.spawn_sys_cmd(history, process::Command::new(command).args(args).spawn()); }
 			}
 		}
 	}

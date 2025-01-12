@@ -5,7 +5,7 @@ use std::{cell::RefCell, rc::Rc};
 use core::fmt;
 use shell::ShellGlobal;
 
-use crate::{ps::Ps, MapDisplay};
+use crate::{ps::Ps, session::MapDisplay};
 
 mod shell;
 mod terminal;

@@ -1,17 +1,40 @@
 use std::{cell::RefCell, fs, io::{self}, rc::Rc};
 use core::fmt;
+use color_print::ceprintln;
 
 use crate::{
-	commands, ps::{self, Ps}, rc::{self}, shell_error, vm::{self, LuauVm}, MapDisplay
+	commands, history::History, ps::{self, Ps}, rc::{self}, vm::{self, LuauVm}
 };
+
+#[inline]
+pub fn shell_error<E: fmt::Display>(err: E) {
+	ceprintln!("<bold,r>[!]:</> {err}")
+}
+
+pub trait MapDisplay<T, E: fmt::Display> {
+	fn map_or_display<F: FnOnce(T)>(self, f: F);
+	fn map_or_display_none<R, F: FnOnce(T) -> Option<R>>(self, f: F) -> Option<R>;
+}
+impl<T, E: fmt::Display> MapDisplay<T, E> for Result<T, E> {
+	///Map but display the error to stdout
+	#[inline]
+	fn map_or_display<F: FnOnce(T)>(self, f: F) {
+		self.map_or_else(|e| shell_error(e), f)
+	}
+	///Map but display the error to stdout and return `None`
+	#[inline]
+	fn map_or_display_none<R, F: FnOnce(T) -> Option<R>>(self, f: F) -> Option<R> {
+		self.map_or_else(|e| { shell_error(e); None }, f)
+	}
+}
 
 #[derive(Debug, Clone)]
 pub struct Config {
 	pub norc: bool
 }
-
 pub struct LambdaShell {
 	terminate: bool,
+	history: History,
 	config: Config,
 	vm: LuauVm,
 	ps: Rc<RefCell<Ps>>,
@@ -22,6 +45,7 @@ impl LambdaShell {
 		Self {
 			ps: Rc::clone(&ps),
 			vm: vm::LuauVm::new(ps),
+			history: History::init(),
 			terminate: false,
 			config,
 		}
@@ -31,8 +55,11 @@ impl LambdaShell {
 		io::Write::flush(&mut io::stdout()).map(|()| {
 			let mut input = String::new();
 			io::stdin().read_line(&mut input).map_or_display(|_size| match input.trim() {
-				"exit" => self.terminate = true,
-				trim => commands::Command::new(trim.to_owned()).exec()
+				"exit" => {
+					self.terminate = true;
+					self.history.add("exit");
+				},
+				trim => commands::Command::new(trim.to_owned()).exec(&mut self.history)
 			})
 		})
 	}
@@ -49,6 +76,7 @@ impl LambdaShell {
 			}
 		}
 		self.ps.borrow().display();
+
 		loop {
 			if self.terminate { break } else {
 				match self.wait() {
@@ -57,6 +85,7 @@ impl LambdaShell {
 			    }
 			}
 		}
+		self.history.write_to_file_fallible();
 	}
 
 	pub fn vm_exec(&self, source: String) {

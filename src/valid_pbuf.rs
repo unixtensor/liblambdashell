@@ -1,7 +1,7 @@
 use std::{fs::{self, File}, io::{self, Write}, path::PathBuf};
 use thiserror::Error;
 
-use crate::MapDisplay;
+use crate::session::MapDisplay;
 
 #[derive(Debug, Error)]
 #[allow(dead_code)]
