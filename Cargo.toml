@@ -7,8 +7,9 @@ edition = "2021"
 color-print = "0.3.7"
 const_format = { version = "0.2.34", features = ["rust_1_64"] }
 crossterm = "0.28.1"
+ctrlc = "3.4.5"
 home = "0.5.9"
-mlua = { version = "0.10.0", features = ["luau-jit", "vendored"] }
+mlua = { version = "0.10.0", features = ["luau-jit", "vendored", "async", "send"] }
 thiserror = "2.0.9"
 uzers = "0.12.1"
 whoami = "1.5.2"
