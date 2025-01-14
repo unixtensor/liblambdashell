@@ -98,7 +98,7 @@ impl Command {
 			history.add(self.0.as_str());
 			child.wait().ok();
 		} else {
-			println!("Unknown command: {}", self.0)
+			println!("lambdashell: Unknown command: {}", self.0)
 		}
 	}
 

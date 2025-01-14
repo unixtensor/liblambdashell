@@ -41,7 +41,7 @@ pub trait ShellGlobal {
 }
 impl ShellGlobal for LuauVm {
 	fn global_shell(&self, luau_globals: &Table) -> lResult<()> {
-		luau_globals.set("SHELL", Shell(Rc::clone(&self.ps)))?;
+		luau_globals.raw_set("SHELL", Shell(Rc::clone(&self.ps)))?;
 		Ok(())
 	}
 }

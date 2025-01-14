@@ -36,9 +36,8 @@ impl History {
 				.open(history_file.as_path())
 			.map_or_display(|mut file| {
 				let newline_maybe = if fs_history.is_empty() { "" } else { "\n" };
-				if let Err(write_err) = file.write_all(format!("{newline_maybe}{}", self.history.join("\n")).as_bytes()) {
-					session::shell_error(write_err);
-				};
+				let formatted = format!("{newline_maybe}{}", self.history.join("\n"));
+				file.write_all(formatted.as_bytes()).unwrap_or_else(session::shell_error)
 			});
 		}
 	}
