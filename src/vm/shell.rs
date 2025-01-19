@@ -2,7 +2,7 @@ use mlua::{Lua as Luau, MetaMethod, Result as lResult, Table, UserData, UserData
 use std::{cell::RefCell, rc::Rc};
 use whoami::fallible;
 
-use crate::{ps::Ps, vm::LuauVm};
+use crate::{ps::{Ps, PsMut}, vm::LuauVm};
 
 const DEFAULT_HOSTNAME: &str = "hostname";
 
@@ -27,20 +27,18 @@ impl UserData for Shell {
 	}
 
 	fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
-		methods.add_meta_method_mut(MetaMethod::NewIndex, |_, this, (tindex, tvalue): (String, String)| -> lResult<()> {
-			if tindex == "PROMPT" {
-				this.0.borrow_mut().modify(tvalue);
-			}
+		methods.add_meta_method_mut(MetaMethod::NewIndex, |_, this, (t_index, t_value): (String, String)| -> lResult<()> {
+			if t_index == "PROMPT" { this.0.borrow_mut().modify(t_value); }
 			Ok(())
 		});
 	}
 }
 
 pub trait ShellGlobal {
-	fn global_shell(&self, luau_globals: &Table) -> lResult<()>;
+	fn glob_shell(&self, luau_globals: &Table) -> lResult<()>;
 }
 impl ShellGlobal for LuauVm {
-	fn global_shell(&self, luau_globals: &Table) -> lResult<()> {
+	fn glob_shell(&self, luau_globals: &Table) -> lResult<()> {
 		luau_globals.raw_set("SHELL", Shell(Rc::clone(&self.ps)))?;
 		Ok(())
 	}

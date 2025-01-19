@@ -84,10 +84,10 @@ impl UserData for Terminal {
 }
 
 pub trait TerminalGlobal {
-	fn global_terminal(&self, luau_globals: &Table) -> lResult<()>;
+	fn glob_terminal(&self, luau_globals: &Table) -> lResult<()>;
 }
 impl TerminalGlobal for LuauVm {
-	fn global_terminal(&self, luau_globals: &Table) -> lResult<()> {
+	fn glob_terminal(&self, luau_globals: &Table) -> lResult<()> {
 		luau_globals.raw_set("TERMINAL", Terminal)
 	}
 }

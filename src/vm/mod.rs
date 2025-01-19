@@ -1,8 +1,8 @@
 use mlua::{Function, Lua as Luau, MultiValue, Result as lResult, Table, Value};
 use color_print::{cformat, ceprintln};
 use terminal::TerminalGlobal;
-use std::{cell::RefCell, rc::Rc};
 use core::fmt;
+use std::{cell::RefCell, rc::Rc};
 use shell::ShellGlobal;
 
 use crate::{ps::Ps, session::MapDisplay};
@@ -27,14 +27,16 @@ impl<T, E: fmt::Display> LuauRuntimeErr<T> for Result<T, E> {
 trait Globals {
 	const LIB_VERSION: &str;
 	const CONV_ERROR: &str;
-	fn global_warn(&self, luau_globals: &Table) -> lResult<()>;
-	fn global_version(&self, luau_globals: &Table) -> lResult<()>;
+	const LIB_NAME: &str;
+	fn glob_warn(&self, luau_globals: &Table) -> lResult<()>;
+	fn glob_version(&self, luau_globals: &Table) -> lResult<()>;
 }
 impl Globals for LuauVm {
 	const LIB_VERSION: &str = env!("CARGO_PKG_VERSION");
+	const LIB_NAME: &str = env!("CARGO_PKG_NAME");
 	const CONV_ERROR: &str = "<SHELL CONVERSION ERROR>";
 
-	fn global_warn(&self, luau_globals: &Table) -> lResult<()> {
+	fn glob_warn(&self, luau_globals: &Table) -> lResult<()> {
 		let luau_print = luau_globals.get::<Function>("print")?;
 		luau_globals.raw_set("warn", self.vm.create_function(move |this, args: MultiValue| -> lResult<()> {
 			let luau_multi_values = args.into_iter()
@@ -46,9 +48,9 @@ impl Globals for LuauVm {
 		})?)
 	}
 
-	fn global_version(&self, luau_globals: &Table) -> lResult<()> {
+	fn glob_version(&self, luau_globals: &Table) -> lResult<()> {
 		let luau_info = luau_globals.get::<String>("_VERSION")?;
-		luau_globals.raw_set("_VERSION", format!("{luau_info}, liblambdashell {}", Self::LIB_VERSION))
+		luau_globals.raw_set("_VERSION", format!("{luau_info}, {} {}", Self::LIB_NAME, Self::LIB_VERSION))
 	}
 }
 
@@ -61,12 +63,12 @@ impl LuauVm {
 		Self { vm: Luau::new(), ps }
 	}
 
-	fn set_shell_globals(&self) -> lResult<()> {
+	fn setglobs(&self) -> lResult<()> {
 		let luau_globals = self.vm.globals();
-		self.global_shell(&luau_globals)?;
-		self.global_terminal(&luau_globals)?;
-		self.global_warn(&luau_globals)?;
-		self.global_version(&luau_globals)?;
+		self.glob_shell(&luau_globals)?;
+		self.glob_terminal(&luau_globals)?;
+		self.glob_warn(&luau_globals)?;
+		self.glob_version(&luau_globals)?;
 		luau_globals.raw_set("getfenv", mlua::Nil)?;
 		luau_globals.raw_set("setfenv", mlua::Nil)?;
 		self.vm.sandbox(true)?;
@@ -74,6 +76,6 @@ impl LuauVm {
 	}
 
 	pub fn exec(&self, source: String) {
-		self.set_shell_globals().map_or_display_none(|()| self.vm.load(source).exec().map_or_luau_rt_err(Some));
+		self.setglobs().map_or_display_none(|()| self.vm.load(source).exec().map_or_luau_rt_err(Some));
 	}
 }

@@ -1,15 +1,10 @@
-use std::{cell::RefCell, fs, io::{self}, rc::Rc};
+use std::{cell::RefCell, fs, rc::Rc};
 use core::fmt;
 use color_print::ceprintln;
 
 use crate::{
-	commands, history::History, ps::{self, Ps}, rc::{self}, vm::{self, LuauVm}
+	history::History, ps::{self, Ps}, rc::{self}, terminal, vm::LuauVm
 };
-
-#[inline]
-pub fn shell_error<E: fmt::Display>(err: E) {
-	ceprintln!("<bold,r>[!]:</> {err}")
-}
 
 pub trait MapDisplay<T, E: fmt::Display> {
 	fn map_or_display<F: FnOnce(T)>(self, f: F);
@@ -28,45 +23,32 @@ impl<T, E: fmt::Display> MapDisplay<T, E> for Result<T, E> {
 	}
 }
 
+pub fn shell_error<E: fmt::Display>(err: E) {
+	ceprintln!("<bold,r>[!]:</> {err}")
+}
+pub fn shell_error_none<T, E: fmt::Display>(err: E) -> Option<T> {
+	shell_error(err);
+	None
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
-	pub norc: bool
+	pub norc: bool,
+	pub nojit: bool,
+	pub nosandbox: bool
 }
 pub struct LambdaShell {
-	terminate: bool,
 	history: History,
 	config: Config,
-	vm: LuauVm,
-	ps: Rc<RefCell<Ps>>,
+	ps: Ps,
 }
 impl LambdaShell {
 	pub fn create(config: Config) -> Self {
-		let ps = Rc::new(RefCell::new(Ps::set(ps::DEFAULT_PS.to_owned())));
 		Self {
-			ps: Rc::clone(&ps),
-			vm: vm::LuauVm::new(ps),
+			ps: Ps::set(ps::DEFAULT_PS.to_owned()),
 			history: History::init(),
-			terminate: false,
 			config,
 		}
-	}
-
-	pub fn wait(&mut self) -> Result<(), io::Error> {
-		io::Write::flush(&mut io::stdout()).map(|()| {
-			let mut input = String::new();
-			io::stdin().read_line(&mut input).map_or_display(|_size| match input.trim() {
-				"exit" => {
-					self.terminate = true;
-					self.history.add("exit");
-				},
-				trim => commands::Command::new(trim.to_owned()).exec(&mut self.history)
-			})
-		})
-	}
-
-	pub fn error<E: fmt::Display>(&mut self, err: E) {
-		shell_error(err);
-		self.terminate = true;
 	}
 
 	pub fn start(&mut self) {
@@ -75,20 +57,13 @@ impl LambdaShell {
 				fs::read_to_string(conf_file).map_or_display(|luau_conf| self.vm_exec(luau_conf));
 			}
 		}
-		self.ps.borrow().display();
-
-		loop {
-			if self.terminate { break } else {
-				match self.wait() {
-			        Ok(()) => self.ps.borrow().display(),
-			        Err(flush_err) => self.error(flush_err),
-			    }
-			}
-		}
-		self.history.write_to_file_fallible();
+		terminal::Processor::init()
+			.input_processor(&mut self.history)
+			.map_or_display(|()| self.history.write_to_file_fallible());
 	}
 
 	pub fn vm_exec(&self, source: String) {
-		self.vm.exec(source);
+		let p = Rc::new(RefCell::new(&self.ps));
+		LuauVm::new(Rc::clone(p)).exec(source);
 	}
 }

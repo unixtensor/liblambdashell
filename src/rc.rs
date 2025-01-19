@@ -18,7 +18,7 @@ pub fn config_dir() -> Option<PathBuf> {
 	let mut config = home::home_dir()?;
 	config.push(".config");
 	config.is_valid_dir_or_create()?;
-	config.push("lambdashell");
+	config.push("pse");
 	config.is_valid_dir_or_create()
 }
 

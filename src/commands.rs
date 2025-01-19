@@ -12,7 +12,7 @@ impl PathBufIsValid for PathBuf {
 	}
 }
 
-trait ChangeDirectory {
+trait ChangeDirectory<'a> {
 	fn change_directory(&self, args: SplitWhitespace) -> Option<PathBuf>;
 	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf>;
 	fn specific_user_dir(&self, user: String) -> Option<PathBuf>;
@@ -20,7 +20,7 @@ trait ChangeDirectory {
 	fn previous_dir(&self) -> Option<PathBuf>;
 	fn home_dir(&self) -> Option<PathBuf>;
 }
-impl ChangeDirectory for Command {
+impl<'a> ChangeDirectory<'a> for Command<'a> {
 	fn set_current_dir(&self, new_path: &Path) -> Option<PathBuf> {
 		std::env::set_current_dir(new_path).map_or_display_none(|()| Some(new_path.to_path_buf()))
 	}
@@ -87,18 +87,19 @@ impl ChangeDirectory for Command {
 	}
 }
 
-pub struct Command(String);
-impl Command {
-	pub const fn new(input: String) -> Self {
+pub struct Command<'a>(&'a String);
+impl<'a> Command<'a> {
+	pub const fn new(input: &'a String) -> Self {
 		Self(input)
 	}
 
 	pub fn spawn_sys_cmd(&mut self, history: &mut History, command_process: io::Result<process::Child>) {
-		if let Ok(mut child) = command_process {
-			history.add(self.0.as_str());
-			child.wait().ok();
-		} else {
-			println!("lambdashell: Unknown command: {}", self.0)
+		match command_process {
+		    Ok(mut child) => {
+				history.add(self.0.as_str());
+				child.wait().ok();
+			},
+		    Err(_) => println!("pse: Unknown command: {}", self.0),
 		}
 	}
 
