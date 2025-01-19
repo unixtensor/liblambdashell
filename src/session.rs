@@ -1,9 +1,9 @@
+use mlua::Lua as Luau;
 use std::{cell::RefCell, fs, rc::Rc};
 use core::fmt;
-use color_print::ceprintln;
 
 use crate::{
-	history::History, ps::{self, Ps}, rc::{self}, terminal, vm::LuauVm
+	history::History, rc::{self}, terminal::TermProcessor, vm::LuauVm
 };
 
 pub trait MapDisplay<T, E: fmt::Display> {
@@ -24,7 +24,7 @@ impl<T, E: fmt::Display> MapDisplay<T, E> for Result<T, E> {
 }
 
 pub fn shell_error<E: fmt::Display>(err: E) {
-	ceprintln!("<bold,r>[!]:</> {err}")
+	color_print::ceprintln!("<bold,r>[!]:</> {err}")
 }
 pub fn shell_error_none<T, E: fmt::Display>(err: E) -> Option<T> {
 	shell_error(err);
@@ -32,20 +32,35 @@ pub fn shell_error_none<T, E: fmt::Display>(err: E) -> Option<T> {
 }
 
 #[derive(Debug, Clone)]
+pub struct VmConfig {
+	pub sandbox: bool,
+	pub jit: bool,
+}
+#[derive(Debug, Clone)]
 pub struct Config {
 	pub norc: bool,
-	pub nojit: bool,
-	pub nosandbox: bool
+	pub vm: VmConfig,
 }
-pub struct LambdaShell {
-	history: History,
-	config: Config,
-	ps: Ps,
+pub struct Rt {
+	pub ps: Rc<RefCell<String>>,
+	pub input: String,
+	pub vm: Luau,
 }
-impl LambdaShell {
+pub struct Pse {
+	pub config: Config,
+	pub history: History,
+	pub rt: Rt
+}
+impl Pse {
+	const DEFAULT_PS: &str = concat!("pse-", env!("CARGO_PKG_VERSION"), "$ ");
+
 	pub fn create(config: Config) -> Self {
 		Self {
-			ps: Ps::set(ps::DEFAULT_PS.to_owned()),
+			rt: Rt {
+				ps: Rc::new(RefCell::new(Self::DEFAULT_PS.to_owned())),
+				input: String::new(),
+				vm: Luau::new(),
+			},
 			history: History::init(),
 			config,
 		}
@@ -56,14 +71,7 @@ impl LambdaShell {
 			if let Some(conf_file) = rc::config_file() {
 				fs::read_to_string(conf_file).map_or_display(|luau_conf| self.vm_exec(luau_conf));
 			}
-		}
-		terminal::Processor::init()
-			.input_processor(&mut self.history)
-			.map_or_display(|()| self.history.write_to_file_fallible());
-	}
-
-	pub fn vm_exec(&self, source: String) {
-		let p = Rc::new(RefCell::new(&self.ps));
-		LuauVm::new(Rc::clone(p)).exec(source);
+		};
+		self.term_input_processor().map_or_display(|()| self.history.write_to_file_fallible())
 	}
 }

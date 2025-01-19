@@ -2,7 +2,7 @@ use mlua::{UserDataFields, Lua as Luau, Result as lResult, Table, UserData};
 use const_format::str_split;
 use crossterm::style::Stylize;
 
-use crate::vm::LuauVm;
+use crate::session::Pse;
 
 macro_rules! foreground_styles_luau {
 	($luau:expr, $style_table:expr, $($color:ident)+) => {
@@ -84,10 +84,10 @@ impl UserData for Terminal {
 }
 
 pub trait TerminalGlobal {
-	fn glob_terminal(&self, luau_globals: &Table) -> lResult<()>;
+	fn vm_glob_terminal(&self, luau_globals: &Table) -> lResult<()>;
 }
-impl TerminalGlobal for LuauVm {
-	fn glob_terminal(&self, luau_globals: &Table) -> lResult<()> {
+impl TerminalGlobal for Pse {
+	fn vm_glob_terminal(&self, luau_globals: &Table) -> lResult<()> {
 		luau_globals.raw_set("TERMINAL", Terminal)
 	}
 }
